@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Velvet Radial Gradient -->
+    <radialGradient id="feltGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#0f3d24" />
+      <stop offset="50%" stop-color="#0b2b1b" />
+      <stop offset="85%" stop-color="#061910" />
+      <stop offset="100%" stop-color="#030c07" />
+    </radialGradient>
+
+    <!-- Gold Foil Gradient -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#d4af37" />
+      <stop offset="70%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+
+    <!-- Subtle Weave Pattern -->
+    <pattern id="weave" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="4" height="4" fill="rgba(255,255,255,0.015)" />
+      <rect x="4" y="4" width="4" height="4" fill="rgba(0,0,0,0.025)" />
+    </pattern>
+  </defs>
+
+  <!-- Base Felt -->
+  <rect width="1024" height="1024" fill="url(#feltGrad)" />
+  <rect width="1024" height="1024" fill="url(#weave)" />
+
+  <!-- Outer Double Gold Inlay Ring -->
+  <circle cx="512" cy="512" r="460" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.85" />
+  <circle cx="512" cy="512" r="448" fill="none" stroke="url(#goldGrad)" stroke-width="2" opacity="0.6" stroke-dasharray="8 6" />
+
+  <!-- Inner Ornate Decorative Ring -->
+  <circle cx="512" cy="512" r="380" fill="none" stroke="url(#goldGrad)" stroke-width="3" opacity="0.4" />
+  <circle cx="512" cy="512" r="220" fill="none" stroke="url(#goldGrad)" stroke-width="2" opacity="0.3" stroke-dasharray="4 8" />
+
+  <!-- Center Durak 3D Gold Logo & Watermarks -->
+  <g opacity="0.15" fill="url(#goldGrad)">
+    <!-- Spades Top -->
+    <path d="M 512,310 C 490,340 455,365 470,395 C 482,415 504,410 508,400 L 504,425 L 520,425 L 516,400 C 520,410 542,415 554,395 C 569,365 534,340 512,310 Z" />
+    <!-- Hearts Right -->
+    <path d="M 690,512 C 720,490 745,525 745,540 C 745,565 710,590 690,610 C 670,590 635,565 635,540 C 635,525 660,490 690,512 Z" transform="rotate(-90 690 512)" />
+    <!-- Clubs Bottom -->
+    <path d="M 512,714 C 495,695 480,720 495,735 C 475,735 475,760 495,760 C 495,770 510,770 512,755 L 508,775 L 516,775 L 512,755 C 514,770 529,770 529,760 C 549,760 549,735 529,735 C 544,720 529,695 512,714 Z" />
+    <!-- Diamonds Left -->
+    <path d="M 334,482 L 364,512 L 334,542 L 304,512 Z" />
+  </g>
+
+  <!-- Corner Filigree Flourishes -->
+  <g stroke="url(#goldGrad)" stroke-width="2" fill="none" opacity="0.75">
+    <!-- Top-Left Corner -->
+    <path d="M 120,200 C 150,150 180,130 240,120 M 130,240 C 140,180 170,140 220,130" />
+    <circle cx="160" cy="160" r="10" fill="url(#goldGrad)" />
+
+    <!-- Top-Right Corner -->
+    <path d="M 904,200 C 874,150 844,130 784,120 M 894,240 C 884,180 854,140 804,130" />
+    <circle cx="864" cy="160" r="10" fill="url(#goldGrad)" />
+
+    <!-- Bottom-Left Corner -->
+    <path d="M 120,824 C 150,874 180,894 240,904 M 130,784 C 140,844 170,884 220,894" />
+    <circle cx="160" cy="864" r="10" fill="url(#goldGrad)" />
+
+    <!-- Bottom-Right Corner -->
+    <path d="M 904,824 C 874,874 844,894 784,904 M 894,784 C 884,844 854,884 804,894" />
+    <circle cx="864" cy="864" r="10" fill="url(#goldGrad)" />
+  </g>
+</svg>

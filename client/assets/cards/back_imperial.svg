@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 716" width="512" height="716">
+  <defs>
+    <radialGradient id="impBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2d0b16" />
+      <stop offset="70%" stop-color="#19060c" />
+      <stop offset="100%" stop-color="#0a0204" />
+    </radialGradient>
+    <linearGradient id="impGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="30%" stop-color="#eab308" />
+      <stop offset="70%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="716" rx="28" fill="#f8fafc" />
+  <rect x="12" y="12" width="488" height="692" rx="20" fill="url(#impBg)" />
+  <rect x="24" y="24" width="464" height="668" rx="14" fill="none" stroke="url(#impGold)" stroke-width="6" />
+  <rect x="36" y="36" width="440" height="644" rx="10" fill="none" stroke="url(#impGold)" stroke-width="2" opacity="0.6" stroke-dasharray="8 6" />
+
+  <!-- Center Double-Headed Imperial Eagle Silhouette -->
+  <g fill="url(#impGold)" stroke="none" transform="translate(256, 358) scale(1.6)">
+    <!-- Crown -->
+    <path d="M -15,-80 L 0,-95 L 15,-80 L 10,-68 L -10,-68 Z" />
+    <circle cx="0" cy="-98" r="3" />
+    <!-- Wings Left & Right -->
+    <path d="M -5,-50 C -40,-60 -70,-30 -80,10 C -70,20 -50,15 -35,5 C -25,25 -45,45 -55,60 C -30,55 -15,40 -5,20 Z" />
+    <path d="M 5,-50 C 40,-60 70,-30 80,10 C 70,20 50,15 35,5 C 25,25 45,45 55,60 C 30,55 15,40 5,20 Z" />
+    <!-- Chest Shield -->
+    <path d="M -18,-25 L 18,-25 L 14,10 L 0,25 L -14,10 Z" fill="#19060c" stroke="url(#impGold)" stroke-width="2" />
+    <!-- Tail -->
+    <path d="M -10,35 L 10,35 L 15,65 L 0,75 L -15,65 Z" />
+  </g>
+</svg>

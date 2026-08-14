@@ -1,6 +1,5 @@
 /**
- * scene3d.js - AAA Hyper-Realistic 3D Scene: VIP Casino Lounge Environment, PBR Velvet Felt, 
- * Mahogany & Leather Rim, Chandelier Lighting, 3D Chip Stacks & Atmospheric Depth
+ * scene3d.js - AAA 3D Scene with Asset Textures, Room Panorama, Velvet Felt, Lighting & Dynamic Camera
  */
 
 export class Scene3D {
@@ -9,12 +8,13 @@ export class Scene3D {
     this.scene = null;
     this.camera = null;
     this.renderer = null;
+    this.textureLoader = new THREE.TextureLoader();
     this.tableGroup = null;
     this.feltMesh = null;
     this.lights = {};
     this.chipStacks = [];
     this.playerCount = 4;
-    this.tableColor = '#0b2b1b'; // Deep Emerald Velvet
+    this.tableColor = '#0b2b1b';
 
     this.init();
   }
@@ -22,8 +22,8 @@ export class Scene3D {
   init() {
     // 1. Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#05070b');
-    this.scene.fog = new THREE.FogExp2('#05070b', 0.035);
+    this.scene.background = new THREE.Color('#04060a');
+    this.scene.fog = new THREE.FogExp2('#04060a', 0.035);
 
     // 2. Camera with Cinematic Angle & Perspective
     const aspect = window.innerWidth / window.innerHeight;
@@ -40,13 +40,13 @@ export class Scene3D {
     this.renderer.toneMappingExposure = 1.35;
     this.container.appendChild(this.renderer.domElement);
 
-    // 4. Build VIP Casino Room Environment
+    // 4. Build VIP Casino Room Environment with Panorama Asset
     this.buildVIPEnvironment();
 
-    // 5. Build Hyper-Detailed Table
+    // 5. Build Table with Felt Asset Texture
     this.buildLuxuryTable();
 
-    // 6. Build Chandelier & Studio Lighting
+    // 6. Setup Lighting
     this.setupLighting();
 
     // 7. Add 3D Decorative Chip Stacks
@@ -60,43 +60,12 @@ export class Scene3D {
   }
 
   buildVIPEnvironment() {
-    // Large Room Sphere / Cylinder with Luxury Wood Paneling & Ambient Warm Lights
     const roomGeo = new THREE.CylinderGeometry(14, 14, 12, 32, 1, true);
-    const roomCanvas = document.createElement('canvas');
-    roomCanvas.width = 1024;
-    roomCanvas.height = 512;
-    const ctx = roomCanvas.getContext('2d');
-
-    // Dark Mahogany Wall panels with gold trim & soft lamp glow
-    ctx.fillStyle = '#0a0d14';
-    ctx.fillRect(0, 0, roomCanvas.width, roomCanvas.height);
-
-    for (let x = 0; x < roomCanvas.width; x += 128) {
-      // Wood panel
-      const grad = ctx.createLinearGradient(x, 0, x + 128, 0);
-      grad.addColorStop(0, '#150d0a');
-      grad.addColorStop(0.5, '#24140e');
-      grad.addColorStop(1, '#120b08');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x + 4, 30, 120, roomCanvas.height - 60);
-
-      // Gold frame line
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 8, 36, 112, roomCanvas.height - 72);
-
-      // Sconce wall lamp warm glow
-      const lampGrad = ctx.createRadialGradient(x + 64, 180, 5, x + 64, 180, 90);
-      lampGrad.addColorStop(0, 'rgba(255, 215, 130, 0.7)');
-      lampGrad.addColorStop(0.5, 'rgba(255, 180, 80, 0.2)');
-      lampGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = lampGrad;
-      ctx.fillRect(x, 90, 128, 180);
-    }
-
-    const roomTexture = new THREE.CanvasTexture(roomCanvas);
+    
+    // Load Room Panorama Texture Asset
+    const roomTexture = this.textureLoader.load('assets/table/room_panorama.svg');
     roomTexture.wrapS = THREE.RepeatWrapping;
-    roomTexture.repeat.set(4, 1);
+    roomTexture.repeat.set(2, 1);
 
     const roomMat = new THREE.MeshBasicMaterial({
       map: roomTexture,
@@ -109,12 +78,11 @@ export class Scene3D {
   }
 
   setupLighting() {
-    // Ambient Warm Base
-    const ambient = new THREE.AmbientLight(0xffeedd, 0.6);
+    const ambient = new THREE.AmbientLight(0xffeedd, 0.65);
     this.scene.add(ambient);
 
-    // Warm Chandelier Overhead Spotlights (Main key light)
-    const chandelierSpot = new THREE.SpotLight(0xffe8c6, 3.2);
+    // Warm Chandelier Overhead Spotlight
+    const chandelierSpot = new THREE.SpotLight(0xffe8c6, 3.4);
     chandelierSpot.position.set(0, 7.5, 0);
     chandelierSpot.angle = Math.PI / 3;
     chandelierSpot.penumbra = 0.6;
@@ -125,7 +93,7 @@ export class Scene3D {
     this.scene.add(chandelierSpot);
     this.lights.chandelierSpot = chandelierSpot;
 
-    // Front Fill Soft Light (for cards and avatars)
+    // Front Fill Soft Light
     const frontFill = new THREE.DirectionalLight(0xfff5ea, 0.9);
     frontFill.position.set(0, 5, 5);
     this.scene.add(frontFill);
@@ -136,29 +104,22 @@ export class Scene3D {
     rimPoint.position.set(0, 4, -4);
     this.scene.add(rimPoint);
     this.lights.rimPoint = rimPoint;
-
-    // Side Accent Lights for depth
-    const leftFill = new THREE.PointLight(0x38bdf8, 0.4, 10);
-    leftFill.position.set(-5, 3, 0);
-    this.scene.add(leftFill);
-
-    const rightFill = new THREE.PointLight(0xf59e0b, 0.4, 10);
-    rightFill.position.set(5, 3, 0);
-    this.scene.add(rightFill);
   }
 
   buildLuxuryTable() {
     this.tableGroup = new THREE.Group();
 
-    // 1. Generate PBR Procedural Velvet Felt Texture with Gold Filigree
-    const feltTexture = this.generateFeltTexture(this.tableColor);
+    // 1. Felt Texture Asset
+    const feltTexture = this.textureLoader.load('assets/table/felt_emerald.svg');
+    feltTexture.minFilter = THREE.LinearFilter;
+    feltTexture.magFilter = THREE.LinearFilter;
 
     // Felt Surface
     const feltRadius = 3.6;
     const feltGeo = new THREE.CylinderGeometry(feltRadius, feltRadius, 0.08, 64);
     this.feltMat = new THREE.MeshStandardMaterial({
       map: feltTexture,
-      roughness: 0.75,
+      roughness: 0.7,
       metalness: 0.1
     });
     this.feltMesh = new THREE.Mesh(feltGeo, this.feltMat);
@@ -166,7 +127,7 @@ export class Scene3D {
     this.feltMesh.receiveShadow = true;
     this.tableGroup.add(this.feltMesh);
 
-    // 2. Inner Golden Brass Lip Ring
+    // 2. Golden Brass Lip Ring
     const brassGeo = new THREE.TorusGeometry(feltRadius + 0.02, 0.035, 16, 64);
     const brassMat = new THREE.MeshStandardMaterial({
       color: 0xe6ca65,
@@ -178,7 +139,7 @@ export class Scene3D {
     brassMesh.position.y = 0.04;
     this.tableGroup.add(brassMesh);
 
-    // 3. Dark Leather Padded Armrest Ring (Beveled Torus)
+    // 3. Dark Leather Padded Armrest Ring
     const leatherGeo = new THREE.TorusGeometry(feltRadius + 0.28, 0.26, 24, 64);
     const leatherMat = new THREE.MeshStandardMaterial({
       color: 0x140e0b,
@@ -192,7 +153,7 @@ export class Scene3D {
     leatherMesh.receiveShadow = true;
     this.tableGroup.add(leatherMesh);
 
-    // 4. Polished Mahogany Outer Wooden Base (Octagon)
+    // 4. Polished Mahogany Outer Base (Octagon)
     const woodRadius = feltRadius + 0.55;
     const woodGeo = new THREE.CylinderGeometry(woodRadius, woodRadius + 0.3, 0.55, 8);
     const woodMat = new THREE.MeshStandardMaterial({
@@ -216,72 +177,14 @@ export class Scene3D {
     this.scene.add(this.tableGroup);
   }
 
-  generateFeltTexture(baseColorHex) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-
-    // 1. Base Velvet Gradient with Vignette Darkening
-    const grad = ctx.createRadialGradient(512, 512, 80, 512, 512, 500);
-    grad.addColorStop(0, baseColorHex);
-    grad.addColorStop(0.7, '#071b11');
-    grad.addColorStop(1, '#030d08');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1024, 1024);
-
-    // 2. Subtle Micro Velvet Noise
-    for (let i = 0; i < 20000; i++) {
-      ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255, 255, 255, 0.015)' : 'rgba(0, 0, 0, 0.025)';
-      ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
-    }
-
-    // 3. Ornate Golden Inset Border
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(512, 512, 440, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.25)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(512, 512, 426, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // 4. Subtle Suit Watermarks in Center
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.font = '60px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('♠', 512, 380);
-    ctx.fillText('♥', 644, 512);
-    ctx.fillText('♣', 512, 644);
-    ctx.fillText('♦', 380, 512);
-
-    // Center Gold Ring
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.2)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(512, 512, 180, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
-  }
-
   setTableColor(hexColor) {
     this.tableColor = hexColor;
     if (this.feltMat) {
-      this.feltMat.map = this.generateFeltTexture(hexColor);
-      this.feltMat.needsUpdate = true;
+      this.feltMat.color.set(hexColor);
     }
   }
 
   buildDecorChips() {
-    // Stacks of luxury chips on table edge
     const chipPositions = [
       { x: -2.8, z: 0.9, color: 0xef4444, count: 8 },
       { x: -2.9, z: 0.6, color: 0x10b981, count: 12 },
@@ -313,9 +216,6 @@ export class Scene3D {
     });
   }
 
-  /**
-   * Procedural Camera Framing for 2 to 6 Players
-   */
   updateCameraForPlayerCount(count, animate = true) {
     this.playerCount = Math.max(2, Math.min(6, count));
 
