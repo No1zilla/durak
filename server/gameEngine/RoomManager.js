@@ -142,7 +142,7 @@ class RoomManager {
     room.game.start();
 
     this.broadcastState(room.id);
-    this.handleBotTurns(room.id);
+    setTimeout(() => this.handleBotTurns(room.id), 1500);
 
     return { success: true, room };
   }

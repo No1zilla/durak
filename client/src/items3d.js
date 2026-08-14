@@ -1,6 +1,7 @@
 /**
  * items3d.js - Interactive 3D Throwing Items & Splat Particle FX (Tomatoes, Champagne, Coins)
  */
+/* global THREE, gsap */
 
 import { sounds } from './audio.js';
 
@@ -54,6 +55,8 @@ export class ThrowItemsEngine {
         mesh.rotation.z += 0.2;
       },
       onComplete: () => {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
         this.scene.remove(mesh);
         this.createSplatFX(end, itemType);
       }
@@ -115,6 +118,8 @@ export class ThrowItemsEngine {
       if (progress < 1) {
         requestAnimationFrame(anim);
       } else {
+        pGeo.dispose();
+        pMat.dispose();
         this.scene.remove(pSystem);
       }
     };

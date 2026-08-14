@@ -1,6 +1,7 @@
 /**
  * vkBridge.js - VK Bridge Integration for App ID 54720415 with Mock Fallback for Local Dev
  */
+/* global vkBridge */
 
 export const VK_APP_ID = 54720415;
 

@@ -1,6 +1,7 @@
 /**
  * cards.js - High-Resolution Card Texture Generator with Asset Loader
  */
+/* global THREE */
 
 export const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 
@@ -137,6 +138,10 @@ function drawPips(ctx, count, symbol, color) {
   ctx.textBaseline = 'middle';
 
   const positions = {
+    2: [[0, -60], [0, 60]],
+    3: [[0, -110], [0, 0], [0, 110]],
+    4: [[-60, -80], [60, -80], [-60, 80], [60, 80]],
+    5: [[-60, -80], [60, -80], [0, 0], [-60, 80], [60, 80]],
     6: [[-60, -110], [60, -110], [-60, 0], [60, 0], [-60, 110], [60, 110]],
     7: [[-60, -110], [60, -110], [0, -50], [-60, 0], [60, 0], [-60, 110], [60, 110]],
     8: [[-60, -120], [60, -120], [0, -60], [-60, 0], [60, 0], [0, 60], [-60, 120], [60, 120]],

@@ -1,6 +1,7 @@
 /**
  * scene3d.js - AAA 3D Scene with Asset Textures, Room Panorama, Velvet Felt, Lighting & Dynamic Camera
  */
+/* global THREE, gsap */
 
 export class Scene3D {
   constructor(containerElement) {

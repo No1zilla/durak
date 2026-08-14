@@ -482,7 +482,7 @@ class DurakGame {
       state: this.state,
       bet: this.bet,
       deckRemaining: this.deck ? this.deck.remaining : this.deckSize,
-      trumpCard: this.trumpCard,
+      trumpCard: this.deck && this.deck.remaining > 0 ? this.trumpCard : null,
       trumpSuit: this.trumpSuit,
       discardCount: this.discardPile.length,
       tablePairs: this.tablePairs,

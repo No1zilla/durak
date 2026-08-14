@@ -1,6 +1,7 @@
 /**
  * app.js - Main Client Application Orchestrator for Durak Online 3D (VK Mini App)
  */
+/* global io */
 
 import { vk, VK_APP_ID } from './vkBridge.js';
 import { sounds } from './audio.js';

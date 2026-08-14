@@ -1,6 +1,7 @@
 /**
  * cardRenderer3d.js - 3D Card Meshes, Hand Fan Layout in Camera View, 3D Opponent Hands & Animations
  */
+/* global THREE, gsap */
 
 import { createCardFaceTexture, createCardBackTexture } from './cards.js';
 import { sounds } from './audio.js';
@@ -72,6 +73,9 @@ export class CardRenderer3D {
     const currentHandIds = new Set(cards.map(c => c.id));
     for (const [id, mesh] of this.cardMeshes.entries()) {
       if (mesh.userData.isHand && !currentHandIds.has(id)) {
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (Array.isArray(mesh.material)) mesh.material.forEach(m => m.dispose());
+        else if (mesh.material) mesh.material.dispose();
         this.scene.remove(mesh);
         this.cardMeshes.delete(id);
       }
@@ -134,7 +138,12 @@ export class CardRenderer3D {
    * Renders 3D Opponents' Card Backs around the table
    */
   renderOpponentsHands(players, localPlayerId) {
-    this.opponentCardMeshes.forEach(m => this.scene.remove(m));
+    this.opponentCardMeshes.forEach(m => {
+      if (m.geometry) m.geometry.dispose();
+      if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+      else if (m.material) m.material.dispose();
+      this.scene.remove(m);
+    });
     this.opponentCardMeshes = [];
 
     const total = players.length;
