@@ -124,6 +124,7 @@
 
         <div class="mode-badge" id="hud-game-mode">Подкидной</div>
 
+        <button id="btn-add-bot" class="btn-icon-small" title="Добавить бота" style="font-size:12px; width:auto; padding:0 10px;">🤖 +Бот</button>
         <button id="btn-throw-menu" class="btn-icon-small" title="Бросить предмет">🍅</button>
       </div>
 
@@ -152,7 +153,7 @@
       </div>
 
       <!-- Bottom Hand Card Fan Hint -->
-      <div class="hand-hint" id="hand-hint">Перетащите карту на стол для хода</div>
+      <div class="hand-hint" id="hand-hint">Нажмите на карту для хода</div>
 
       <!-- 3D Player Badges Container (Positioned procedurally in Three.js coordinates) -->
       <div id="player-seats-hud"></div>
@@ -241,7 +242,6 @@
     <!-- Stylish Quiet Luxury Victory & Share Card (VK Stories / Wall) -->
     <div id="modal-victory" class="modal-overlay victory-overlay">
       <div class="victory-card-container">
-        <!-- Aesthetic Frosted Glass Share Card -->
         <div class="stylish-share-card glass-modal" id="share-card-element">
           <div class="share-avatar-wrapper">
             <img id="vic-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Winner">
@@ -267,7 +267,6 @@
           </div>
         </div>
 
-        <!-- Action Buttons for VK Sharing -->
         <div class="victory-actions-panel">
           <button id="btn-share-vk-story" class="btn-hero vk-blue full-width">
             <span>✨ Опубликовать в VK Историю</span>

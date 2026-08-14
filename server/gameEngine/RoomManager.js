@@ -1,5 +1,5 @@
 /**
- * RoomManager.js - Room matchmaking, bot management, and broadcast controller
+ * RoomManager.js - Room matchmaking with auto-bot filler for fast gameplay and bot AI
  */
 
 const { DurakGame, GAME_MODES, GAME_STATES } = require('./DurakGame');
@@ -7,17 +7,19 @@ const { DurakGame, GAME_MODES, GAME_STATES } = require('./DurakGame');
 class RoomManager {
   constructor(io) {
     this.io = io;
-    this.rooms = new Map(); // roomId -> { game, settings, hostId, spectators: [] }
-    this.playerRooms = new Map(); // socketId/playerId -> roomId
+    this.rooms = new Map();
+    this.playerRooms = new Map();
   }
 
   createRoom(settings = {}, hostPlayer) {
     const roomId = 'room_' + Math.random().toString(36).substring(2, 8);
+    const maxPlayers = Math.min(6, Math.max(2, settings.maxPlayers || 4));
+
     const game = new DurakGame({
       id: roomId,
       mode: settings.mode || GAME_MODES.PODKIDNOY,
       deckSize: settings.deckSize || 36,
-      maxPlayers: settings.maxPlayers || 4,
+      maxPlayers,
       bet: settings.bet || 100,
       turnTimeLimit: settings.turnTimeLimit || 30
     });
@@ -85,8 +87,7 @@ class RoomManager {
     this.playerRooms.set(player.id, roomId);
     if (player.socketId) this.playerRooms.set(player.socketId, roomId);
 
-    // Auto-start if table reaches max players
-    if (room.game.players.length === room.game.maxPlayers && room.game.state === GAME_STATES.WAITING) {
+    if (room.game.players.length >= 2 && room.game.state === GAME_STATES.WAITING) {
       room.game.start();
     }
 
@@ -105,7 +106,6 @@ class RoomManager {
     this.playerRooms.delete(playerId);
     if (socketId) this.playerRooms.delete(socketId);
 
-    // If room is empty, delete room
     const humanPlayers = room.game.players.filter(p => !p.isBot);
     if (humanPlayers.length === 0) {
       this.rooms.delete(roomId);
@@ -115,16 +115,17 @@ class RoomManager {
   }
 
   quickMatch(player, preferredMode = GAME_MODES.PODKIDNOY) {
-    // Find open room waiting for players
+    // 1. Check for open room
     for (const [id, r] of this.rooms.entries()) {
       if (!r.isPrivate && r.game.state === GAME_STATES.WAITING && r.game.players.length < r.game.maxPlayers) {
         if (r.game.mode === preferredMode) {
-          return this.joinRoom(id, player);
+          const joined = this.joinRoom(id, player);
+          if (joined.success) return joined;
         }
       }
     }
 
-    // Create a new room with 4 players default
+    // 2. Create new room & Auto-fill with 3 AI players for instant 4-player action
     const room = this.createRoom({
       mode: preferredMode,
       maxPlayers: 4,
@@ -132,20 +133,31 @@ class RoomManager {
       turnTimeLimit: 30
     }, player);
 
+    // Auto add 3 bots
+    this.addBot(room.id, 'Екатерина (Бот)', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop');
+    this.addBot(room.id, 'Максим (Бот)', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop');
+    this.addBot(room.id, 'Ольга (Бот)', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop');
+
+    // Start game immediately
+    room.game.start();
+
     this.broadcastState(room.id);
+    this.handleBotTurns(room.id);
+
     return { success: true, room };
   }
 
-  addBot(roomId) {
+  addBot(roomId, customName = null, customAvatar = null) {
     const room = this.rooms.get(roomId);
-    if (!room || room.game.state !== GAME_STATES.WAITING) return false;
+    if (!room) return false;
     if (room.game.players.length >= room.game.maxPlayers) return false;
 
-    const botNames = ['Алексей Бот', 'Екатерина Бот', 'Максим Бот', 'Ольга Бот', 'Сергей Бот'];
+    const botNames = ['Алексей (Бот)', 'Екатерина (Бот)', 'Максим (Бот)', 'Ольга (Бот)', 'Сергей (Бот)'];
     const botAvatars = [
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop'
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
     ];
 
     const botId = 'bot_' + Math.random().toString(36).substring(2, 7);
@@ -154,13 +166,18 @@ class RoomManager {
     room.game.addPlayer({
       id: botId,
       socketId: null,
-      name: botNames[botIndex],
-      avatar: botAvatars[botIndex % botAvatars.length],
+      name: customName || botNames[botIndex],
+      avatar: customAvatar || botAvatars[botIndex % botAvatars.length],
       isBot: true,
       chips: 5000
     });
 
+    if (room.game.state === GAME_STATES.WAITING && room.game.players.length >= 2) {
+      room.game.start();
+    }
+
     this.broadcastState(roomId);
+    this.handleBotTurns(roomId);
     return true;
   }
 
@@ -168,7 +185,6 @@ class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    // Send individualized sanitized state to each connected player
     for (const player of room.game.players) {
       if (player.socketId) {
         const sanitized = room.game.getSanitizedState(player.id);
@@ -184,31 +200,28 @@ class RoomManager {
     const activeDefender = room.game.currentDefender;
     const activeAttacker = room.game.currentAttacker;
 
-    // Bot AI Turn Logic
     setTimeout(() => {
+      if (!this.rooms.has(roomId)) return;
+
       if (room.game.state === GAME_STATES.ATTACKING) {
-        // Find if attacker is bot
         if (activeAttacker && activeAttacker.isBot && activeAttacker.outRank === null) {
           this.executeBotAttack(room, activeAttacker);
         } else {
-          // Other bot players might toss cards
           const botAttackers = room.game.getActivePlayers().filter(p => p.isBot && p.id !== activeDefender.id);
           if (botAttackers.length > 0 && room.game.tablePairs.length > 0) {
             this.executeBotToss(room, botAttackers[0]);
           }
         }
       } else if (room.game.state === GAME_STATES.DEFENDING) {
-        // Find if defender is bot
         if (activeDefender && activeDefender.isBot && activeDefender.outRank === null) {
           this.executeBotDefense(room, activeDefender);
         }
       }
-    }, 1200);
+    }, 1000);
   }
 
   executeBotAttack(room, bot) {
     if (room.game.tablePairs.length === 0) {
-      // Lead attack with lowest non-trump card
       const nonTrumps = bot.hand.filter(c => c.suit !== room.game.trumpSuit).sort((a, b) => a.rank - b.rank);
       const cardToPlay = nonTrumps.length > 0 ? nonTrumps[0] : bot.hand.sort((a, b) => a.rank - b.rank)[0];
 
@@ -231,7 +244,6 @@ class RoomManager {
       this.broadcastState(room.id);
       this.handleBotTurns(room.id);
     } else {
-      // Pass
       room.game.pass(bot.id);
       this.broadcastState(room.id);
       this.handleBotTurns(room.id);
@@ -239,7 +251,6 @@ class RoomManager {
   }
 
   executeBotDefense(room, bot) {
-    // In Perevodnoy, check if bot can transfer
     if (room.game.mode === GAME_MODES.PEREVODNOY && room.game.tablePairs.every(p => !p.defense)) {
       const targetRank = room.game.tablePairs[0].attack.rank;
       const transferCard = bot.hand.find(c => c.rank === targetRank);
@@ -253,14 +264,11 @@ class RoomManager {
       }
     }
 
-    // Try to defend undefended pairs
     const undefended = room.game.tablePairs.find(p => p.defense === null);
     if (!undefended) return;
 
-    // Find best card to beat (lowest valid non-trump, or lowest valid trump)
     const validCards = bot.hand.filter(c => room.game.canBeat(undefended.attack, c));
     if (validCards.length > 0) {
-      // Prefer non-trump beat
       const nonTrumpBeat = validCards.filter(c => c.suit !== room.game.trumpSuit).sort((a, b) => a.rank - b.rank);
       const chosen = nonTrumpBeat.length > 0 ? nonTrumpBeat[0] : validCards.sort((a, b) => a.rank - b.rank)[0];
 
@@ -268,7 +276,6 @@ class RoomManager {
       this.broadcastState(room.id);
       this.handleBotTurns(room.id);
     } else {
-      // Take
       room.game.take(bot.id);
       this.broadcastState(room.id);
       this.handleBotTurns(room.id);

@@ -41,9 +41,6 @@ class DurakApp {
     this.cardRenderer = new CardRenderer3D(this.scene3D);
     this.throwEngine = new ThrowItemsEngine(this.scene3D);
 
-    // Initial Lobby 3D Deck Presentation
-    this.renderLobbyPreviewCards();
-
     // 3. Setup Card Play Interaction
     this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
 
@@ -55,12 +52,19 @@ class DurakApp {
 
     // 6. Fetch Shop Catalog
     this.fetchShopCatalog();
+
+    // Continuous seat badge positioning loop
+    this.startHUDPositionLoop();
   }
 
-  renderLobbyPreviewCards() {
-    // Show a sample trump card & deck on table during lobby
-    const sampleTrump = { suit: 'spades', rank: 14, id: 'preview_trump' };
-    this.cardRenderer.renderDeckAndTrump(36, sampleTrump);
+  startHUDPositionLoop() {
+    const update = () => {
+      if (this.gameState && this.currentRoomId) {
+        this.updatePlayerSeatPositions(this.gameState);
+      }
+      requestAnimationFrame(update);
+    };
+    requestAnimationFrame(update);
   }
 
   updateHeaderProfile() {
@@ -110,7 +114,6 @@ class DurakApp {
       this.gameState = null;
       this.switchView('lobby-view');
       this.scene3D.updateCameraForPlayerCount(4);
-      this.renderLobbyPreviewCards();
     });
 
     this.socket.on('gameState', (state) => this.onGameStateUpdated(state));
@@ -145,15 +148,22 @@ class DurakApp {
     // 1. Adjust Camera and Table for Player Count
     this.scene3D.updateCameraForPlayerCount(state.players.length);
 
-    // 2. Render 3D Cards
+    // 2. Render 3D Local Hand Cards
     const localPlayer = state.players.find(p => p.id === this.player.id);
     if (localPlayer) {
       this.cardRenderer.renderLocalHand(localPlayer.hand || []);
     }
+
+    // 3. Render 3D Opponents Hands
+    this.cardRenderer.renderOpponentsHands(state.players, this.player.id);
+
+    // 4. Render Deck Stack & Trump Card
     this.cardRenderer.renderDeckAndTrump(state.deckRemaining, state.trumpCard);
+
+    // 5. Render Active Table Attack/Defense Pairs
     this.cardRenderer.renderTablePairs(state.tablePairs || []);
 
-    // 3. Update HUD Top Bar
+    // 6. Update HUD Top Bar
     if (state.trumpCard) {
       const suitSymbols = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
       const suitEl = document.getElementById('hud-trump-suit');
@@ -163,13 +173,13 @@ class DurakApp {
     }
     document.getElementById('hud-game-mode').textContent = state.mode === 'perevodnoy' ? 'Переводной' : 'Подкидной';
 
-    // 4. Update HUD Player Seats (3D projection)
+    // 7. Update HUD Player Seats (3D projection)
     this.renderPlayerSeats(state);
 
-    // 5. Update Turn Timer & Action Buttons
+    // 8. Update Turn Timer & Action Buttons
     this.updateTurnControls(state);
 
-    // 6. Check Game Over / Victory Screen
+    // 9. Check Game Over / Victory Screen
     if (state.state === 'GAME_OVER') {
       this.handleGameOver(state);
     }
@@ -180,24 +190,19 @@ class DurakApp {
     container.innerHTML = '';
 
     const total = state.players.length;
-    const seat3DPositions = this.scene3D.getSeatPositions(total);
-
     const localIdx = state.players.findIndex(p => p.id === this.player.id);
 
     state.players.forEach((p, i) => {
-      const relativeIdx = (i - localIdx + total) % total;
-      const pos3D = seat3DPositions[relativeIdx];
-      const screenPos = this.scene3D.toScreenPosition(pos3D);
-
-      if (!screenPos.visible) return;
+      // Don't render avatar badge for local player at bottom
+      if (p.id === this.player.id) return;
 
       const isAttacker = p.id === state.attackerId;
       const isDefender = p.id === state.defenderId;
 
       const badge = document.createElement('div');
       badge.className = `seat-badge-3d ${isAttacker ? 'active-turn' : ''} ${isDefender ? 'defender' : ''}`;
-      badge.style.left = `${screenPos.x}px`;
-      badge.style.top = `${screenPos.y}px`;
+      badge.dataset.playerId = p.id;
+      badge.dataset.seatIndex = i;
 
       badge.innerHTML = `
         <div class="seat-avatar-ring">
@@ -207,15 +212,37 @@ class DurakApp {
         <div class="seat-name-tag">${p.name} ${isAttacker ? '⚔️' : isDefender ? '🛡️' : ''}</div>
       `;
 
-      if (p.id !== this.player.id) {
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.targetThrowPlayerId = p.id;
-          this.toggleThrowMenu(true);
-        });
-      }
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.targetThrowPlayerId = p.id;
+        this.toggleThrowMenu(true);
+      });
 
       container.appendChild(badge);
+    });
+
+    this.updatePlayerSeatPositions(state);
+  }
+
+  updatePlayerSeatPositions(state) {
+    const total = state.players.length;
+    const seat3DPositions = this.scene3D.getSeatPositions(total);
+    const localIdx = state.players.findIndex(p => p.id === this.player.id);
+
+    const badges = document.querySelectorAll('.seat-badge-3d');
+    badges.forEach(badge => {
+      const idx = parseInt(badge.dataset.seatIndex, 10);
+      const relativeIdx = (idx - localIdx + total) % total;
+      const pos3D = seat3DPositions[relativeIdx];
+      const screenPos = this.scene3D.toScreenPosition(pos3D);
+
+      if (screenPos.visible) {
+        badge.style.display = 'flex';
+        badge.style.left = `${screenPos.x}px`;
+        badge.style.top = `${screenPos.y}px`;
+      } else {
+        badge.style.display = 'none';
+      }
     });
   }
 
@@ -403,6 +430,13 @@ class DurakApp {
 
     document.getElementById('btn-leave-game').addEventListener('click', () => {
       this.socket.emit('leaveRoom');
+    });
+
+    document.getElementById('btn-add-bot').addEventListener('click', () => {
+      if (this.currentRoomId) {
+        this.socket.emit('addBot', { roomId: this.currentRoomId });
+        this.showToast('Бот добавлен за стол 🤖');
+      }
     });
 
     document.getElementById('btn-sound').addEventListener('click', () => {
