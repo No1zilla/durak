@@ -1,0 +1,28 @@
+{
+  "name": "durak-online-3d",
+  "version": "1.0.0",
+  "description": "AAA 3D Multiplayer Durak Online for VK Mini Apps",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "durak",
+    "threejs",
+    "vk-mini-apps",
+    "multiplayer",
+    "3d-cards",
+    "socketio"
+  ],
+  "author": "Antigravity Team",
+  "license": "MIT"
+}

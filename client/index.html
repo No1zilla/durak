@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Дурак Онлайн 3D — VK Mini App</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/game-ui.css">
+
+  <!-- External Libraries via CDN -->
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <!-- 3D Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Ambient Vignette Overlay -->
+  <div class="vignette-overlay"></div>
+
+  <!-- App Wrapper -->
+  <div id="app-root">
+    
+    <!-- Top Header Bar -->
+    <header id="top-bar" class="glass-panel">
+      <div class="user-profile" id="btn-profile">
+        <div class="avatar-wrapper">
+          <img id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Avatar">
+          <span class="user-level" id="user-level">1</span>
+        </div>
+        <div class="user-info">
+          <span class="user-name" id="user-name">Игрок</span>
+          <div class="currencies">
+            <span class="currency-badge chips"><i class="icon-chip">🪙</i> <span id="user-chips">5,000</span></span>
+            <span class="currency-badge gold"><i class="icon-gold">⭐</i> <span id="user-gold">50</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-daily" class="btn-icon" title="Ежедневный бонус">
+          <span>🎁</span>
+          <span class="badge-dot"></span>
+        </button>
+        <button id="btn-shop" class="btn-icon" title="Магазин скинов">
+          <span>🛒</span>
+        </button>
+        <button id="btn-sound" class="btn-icon" title="Звук">
+          <span id="sound-icon">🔊</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Lobby View -->
+    <main id="lobby-view" class="view-screen active">
+      <div class="lobby-hero">
+        <h1 class="logo-title">ДУРАК ОНЛАЙН <span class="badge-3d">3D</span></h1>
+        <p class="logo-subtitle">Мультиплеер во ВКонтакте</p>
+      </div>
+
+      <!-- Quick Play Buttons -->
+      <div class="quick-actions-row">
+        <button id="btn-quick-podkidnoy" class="btn-hero primary">
+          <div class="btn-glow"></div>
+          <span class="btn-icon-hero">⚡</span>
+          <div class="btn-text-block">
+            <strong>Подкидной</strong>
+            <small>Быстрый поиск стола</small>
+          </div>
+        </button>
+
+        <button id="btn-quick-perevodnoy" class="btn-hero accent">
+          <div class="btn-glow"></div>
+          <span class="btn-icon-hero">🔄</span>
+          <div class="btn-text-block">
+            <strong>Переводной</strong>
+            <small>Игра с переводом хода</small>
+          </div>
+        </button>
+      </div>
+
+      <!-- Create Table & Filter Bar -->
+      <div class="lobby-controls">
+        <button id="btn-open-create-modal" class="btn-glass">
+          <span>+ Создать стол</span>
+        </button>
+        <div class="mode-filter-tabs">
+          <button class="filter-tab active" data-filter="all">Все</button>
+          <button class="filter-tab" data-filter="podkidnoy">Подкидной</button>
+          <button class="filter-tab" data-filter="perevodnoy">Переводной</button>
+        </div>
+      </div>
+
+      <!-- Live Rooms List -->
+      <section class="rooms-section">
+        <div class="section-header">
+          <h3>Активные столы</h3>
+          <span id="online-counter">Игроков онлайн: 42</span>
+        </div>
+        <div id="rooms-list" class="rooms-grid">
+          <!-- Dynamically populated room cards -->
+        </div>
+      </section>
+    </main>
+
+    <!-- In-Game HUD Overlay -->
+    <div id="game-hud" class="view-screen">
+      <!-- Top Game Status Header -->
+      <div class="game-top-bar glass-panel">
+        <button id="btn-leave-game" class="btn-icon-small" title="Выйти в лобби">✕</button>
+        
+        <div class="trump-indicator" id="hud-trump-badge">
+          <span class="trump-label">КОЗЫРЬ:</span>
+          <span class="trump-suit-icon" id="hud-trump-suit">♠</span>
+          <span class="trump-deck-count" id="hud-deck-count">36 карт</span>
+        </div>
+
+        <div class="mode-badge" id="hud-game-mode">Подкидной</div>
+
+        <button id="btn-throw-menu" class="btn-icon-small" title="Бросить предмет">🍅</button>
+      </div>
+
+      <!-- Turn Timer Bar -->
+      <div class="turn-timer-container">
+        <div class="turn-timer-bar" id="hud-timer-bar"></div>
+        <span class="turn-timer-text" id="hud-timer-text">30s</span>
+      </div>
+
+      <!-- Action Prompt Banner -->
+      <div id="action-prompt" class="action-prompt-bubble">
+        Ваш ход! Выберите карту для атаки
+      </div>
+
+      <!-- Bottom Action Buttons Bar -->
+      <div class="game-action-controls" id="game-actions">
+        <button id="btn-action-take" class="btn-game-action red hidden">
+          <span>ЗАБРАТЬ</span>
+        </button>
+        <button id="btn-action-pass" class="btn-game-action gold hidden">
+          <span>БИТА</span>
+        </button>
+        <button id="btn-action-transfer" class="btn-game-action blue hidden">
+          <span>ПЕРЕВЕСТИ</span>
+        </button>
+      </div>
+
+      <!-- Bottom Hand Card Fan Hint -->
+      <div class="hand-hint" id="hand-hint">Перетащите карту на стол для хода</div>
+
+      <!-- 3D Player Badges Container (Positioned procedurally in Three.js coordinates) -->
+      <div id="player-seats-hud"></div>
+    </div>
+
+    <!-- Modals & Popups -->
+
+    <!-- Create Room Modal -->
+    <div id="modal-create-room" class="modal-overlay">
+      <div class="modal-card glass-modal">
+        <div class="modal-header">
+          <h2>Создание стола</h2>
+          <button class="btn-close-modal" id="btn-close-create">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Режим игры</label>
+            <div class="radio-toggle-group">
+              <button class="toggle-option active" data-mode="podkidnoy">Подкидной</button>
+              <button class="toggle-option" data-mode="perevodnoy">Переводной</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Количество игроков: <strong id="val-players">4</strong></label>
+            <input type="range" id="input-players" min="2" max="6" value="4" step="1">
+            <div class="range-marks">
+              <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Размер колоды</label>
+            <div class="radio-toggle-group">
+              <button class="toggle-option" data-deck="24">24</button>
+              <button class="toggle-option active" data-deck="36">36</button>
+              <button class="toggle-option" data-deck="52">52</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Ставка (фишки)</label>
+            <div class="bet-presets">
+              <button class="bet-preset active" data-bet="100">100</button>
+              <button class="bet-preset" data-bet="500">500</button>
+              <button class="bet-preset" data-bet="1000">1K</button>
+              <button class="bet-preset" data-bet="5000">5K</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-create-room" class="btn-hero primary full-width">
+            <span>Создать и играть</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shop Modal (3D Skins & VK Pay) -->
+    <div id="modal-shop" class="modal-overlay">
+      <div class="modal-card glass-modal shop-modal">
+        <div class="modal-header">
+          <h2>Магазин Скинов</h2>
+          <button class="btn-close-modal" id="btn-close-shop">✕</button>
+        </div>
+        <div class="shop-tabs">
+          <button class="shop-tab active" data-tab="decks">Рубашки карт</button>
+          <button class="shop-tab" data-tab="tables">Сукно столов</button>
+          <button class="shop-tab" data-tab="currency">Фишки & VK Pay</button>
+        </div>
+        <div class="modal-body shop-items-grid" id="shop-catalog-container">
+          <!-- Dynamically populated shop items -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Throw Item Radial Menu -->
+    <div id="menu-throw-items" class="throw-radial-menu hidden">
+      <button class="btn-throw-item" data-item="tomato" title="Помидор">🍅</button>
+      <button class="btn-throw-item" data-item="champagne" title="Шампанское">🍾</button>
+      <button class="btn-throw-item" data-item="coin" title="Монеты">🪙</button>
+      <button class="btn-throw-item" data-item="fire" title="Огонь">🔥</button>
+      <button class="btn-throw-item" data-item="heart" title="Сердце">❤️</button>
+    </div>
+
+    <!-- Stylish Quiet Luxury Victory & Share Card (VK Stories / Wall) -->
+    <div id="modal-victory" class="modal-overlay victory-overlay">
+      <div class="victory-card-container">
+        <!-- Aesthetic Frosted Glass Share Card -->
+        <div class="stylish-share-card glass-modal" id="share-card-element">
+          <div class="share-avatar-wrapper">
+            <img id="vic-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Winner">
+            <span class="share-level-badge" id="vic-level">LVL 28</span>
+          </div>
+          <h3 class="share-player-name" id="vic-player-name">Игрок</h3>
+          <h1 class="share-title" id="vic-title">ПОБЕДА</h1>
+          <p class="share-subtitle" id="vic-subtitle">Подкидной Дурак • Стол #4</p>
+
+          <div class="share-stats-grid">
+            <div class="stat-box">
+              <span class="stat-val" id="vic-reward">+1,500</span>
+              <span class="stat-lbl">фишек 🪙</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-val" id="vic-streak">5</span>
+              <span class="stat-lbl">побед подряд 🔥</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-val" id="vic-time">03:45</span>
+              <span class="stat-lbl">время матча</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons for VK Sharing -->
+        <div class="victory-actions-panel">
+          <button id="btn-share-vk-story" class="btn-hero vk-blue full-width">
+            <span>✨ Опубликовать в VK Историю</span>
+          </button>
+          <button id="btn-share-vk-wall" class="btn-glass full-width">
+            <span>📝 На стену VK</span>
+          </button>
+          <button id="btn-victory-lobby" class="btn-ghost full-width">
+            <span>В лобби</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-popup"></div>
+
+  </div>
+
+  <!-- Main Application Script Modules -->
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
