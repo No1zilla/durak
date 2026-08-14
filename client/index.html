@@ -62,54 +62,52 @@
 
     <!-- Main Lobby View -->
     <main id="lobby-view" class="view-screen active">
-      <div class="lobby-hero">
+      <!-- Top Title Floating Glass Card -->
+      <div class="lobby-top-card glass-panel">
         <h1 class="logo-title">ДУРАК ОНЛАЙН <span class="badge-3d">3D</span></h1>
-        <p class="logo-subtitle">Мультиплеер во ВКонтакте</p>
+        <p class="logo-subtitle">VIP Мультиплеер во ВКонтакте</p>
       </div>
 
-      <!-- Quick Play Buttons -->
-      <div class="quick-actions-row">
-        <button id="btn-quick-podkidnoy" class="btn-hero primary">
-          <div class="btn-glow"></div>
-          <span class="btn-icon-hero">⚡</span>
-          <div class="btn-text-block">
-            <strong>Подкидной</strong>
-            <small>Быстрый поиск стола</small>
+      <!-- Bottom Floating Controls Panel -->
+      <div class="lobby-bottom-panel glass-panel">
+        <!-- Quick Play Buttons -->
+        <div class="quick-actions-row">
+          <button id="btn-quick-podkidnoy" class="btn-hero primary">
+            <span class="btn-icon-hero">⚡</span>
+            <div class="btn-text-block">
+              <strong>Подкидной</strong>
+              <small>Быстрая игра</small>
+            </div>
+          </button>
+
+          <button id="btn-quick-perevodnoy" class="btn-hero accent">
+            <span class="btn-icon-hero">🔄</span>
+            <div class="btn-text-block">
+              <strong>Переводной</strong>
+              <small>С переводом хода</small>
+            </div>
+          </button>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="lobby-controls">
+          <button id="btn-open-create-modal" class="btn-glass">
+            <span>+ Создать стол</span>
+          </button>
+          <div class="mode-filter-tabs">
+            <button class="filter-tab active" data-filter="all">Все</button>
+            <button class="filter-tab" data-filter="podkidnoy">Подкидной</button>
+            <button class="filter-tab" data-filter="perevodnoy">Переводной</button>
           </div>
-        </button>
+        </div>
 
-        <button id="btn-quick-perevodnoy" class="btn-hero accent">
-          <div class="btn-glow"></div>
-          <span class="btn-icon-hero">🔄</span>
-          <div class="btn-text-block">
-            <strong>Переводной</strong>
-            <small>Игра с переводом хода</small>
+        <!-- Rooms List -->
+        <div class="rooms-section">
+          <div id="rooms-list" class="rooms-grid">
+            <!-- Dynamically populated room cards -->
           </div>
-        </button>
-      </div>
-
-      <!-- Create Table & Filter Bar -->
-      <div class="lobby-controls">
-        <button id="btn-open-create-modal" class="btn-glass">
-          <span>+ Создать стол</span>
-        </button>
-        <div class="mode-filter-tabs">
-          <button class="filter-tab active" data-filter="all">Все</button>
-          <button class="filter-tab" data-filter="podkidnoy">Подкидной</button>
-          <button class="filter-tab" data-filter="perevodnoy">Переводной</button>
         </div>
       </div>
-
-      <!-- Live Rooms List -->
-      <section class="rooms-section">
-        <div class="section-header">
-          <h3>Активные столы</h3>
-          <span id="online-counter">Игроков онлайн: 42</span>
-        </div>
-        <div id="rooms-list" class="rooms-grid">
-          <!-- Dynamically populated room cards -->
-        </div>
-      </section>
     </main>
 
     <!-- In-Game HUD Overlay -->

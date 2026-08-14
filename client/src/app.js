@@ -41,6 +41,9 @@ class DurakApp {
     this.cardRenderer = new CardRenderer3D(this.scene3D);
     this.throwEngine = new ThrowItemsEngine(this.scene3D);
 
+    // Initial Lobby 3D Deck Presentation
+    this.renderLobbyPreviewCards();
+
     // 3. Setup Card Play Interaction
     this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
 
@@ -52,6 +55,12 @@ class DurakApp {
 
     // 6. Fetch Shop Catalog
     this.fetchShopCatalog();
+  }
+
+  renderLobbyPreviewCards() {
+    // Show a sample trump card & deck on table during lobby
+    const sampleTrump = { suit: 'spades', rank: 14, id: 'preview_trump' };
+    this.cardRenderer.renderDeckAndTrump(36, sampleTrump);
   }
 
   updateHeaderProfile() {
@@ -101,6 +110,7 @@ class DurakApp {
       this.gameState = null;
       this.switchView('lobby-view');
       this.scene3D.updateCameraForPlayerCount(4);
+      this.renderLobbyPreviewCards();
     });
 
     this.socket.on('gameState', (state) => this.onGameStateUpdated(state));
@@ -172,7 +182,6 @@ class DurakApp {
     const total = state.players.length;
     const seat3DPositions = this.scene3D.getSeatPositions(total);
 
-    // Find local player's index to orient seat 0 to bottom
     const localIdx = state.players.findIndex(p => p.id === this.player.id);
 
     state.players.forEach((p, i) => {
@@ -198,7 +207,6 @@ class DurakApp {
         <div class="seat-name-tag">${p.name} ${isAttacker ? '⚔️' : isDefender ? '🛡️' : ''}</div>
       `;
 
-      // Tap opponent seat to open throw menu
       if (p.id !== this.player.id) {
         badge.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -221,7 +229,6 @@ class DurakApp {
     const btnTransfer = document.getElementById('btn-action-transfer');
     const promptBubble = document.getElementById('action-prompt');
 
-    // Reset visibility
     btnTake.classList.add('hidden');
     btnPass.classList.add('hidden');
     btnTransfer.classList.add('hidden');
@@ -240,7 +247,6 @@ class DurakApp {
         btnPass.classList.remove('hidden');
       }
     } else {
-      // Non-defender participants can toss
       if (state.tablePairs.length > 0) {
         promptBubble.textContent = 'Можно подкинуть карту подходящего номинала';
         btnPass.classList.remove('hidden');
@@ -249,7 +255,6 @@ class DurakApp {
       }
     }
 
-    // Smooth Timer Progress
     const timerBar = document.getElementById('hud-timer-bar');
     const timerText = document.getElementById('hud-timer-text');
     if (state.turnStartTime) {
@@ -270,7 +275,6 @@ class DurakApp {
     vk.taptic('light');
 
     if (isDefender) {
-      // If Perevodnoy mode & can transfer, check if defender tapped a matching rank
       if (this.gameState.mode === 'perevodnoy' && this.gameState.tablePairs.length > 0 && this.gameState.tablePairs.every(p => !p.defense)) {
         if (this.gameState.tablePairs[0].attack.rank === card.rank) {
           this.socket.emit('transfer', { roomId: this.currentRoomId, cardId: card.id });
@@ -278,7 +282,6 @@ class DurakApp {
         }
       }
 
-      // Otherwise find first undefended attack card to beat
       const undefended = this.gameState.tablePairs.find(p => p.defense === null);
       if (undefended) {
         this.socket.emit('defend', {
@@ -288,7 +291,6 @@ class DurakApp {
         });
       }
     } else {
-      // Attack / Toss
       this.socket.emit('attack', { roomId: this.currentRoomId, cardId: card.id });
     }
   }
@@ -340,7 +342,6 @@ class DurakApp {
   }
 
   bindUIEvents() {
-    // Quick Play
     document.getElementById('btn-quick-podkidnoy').addEventListener('click', () => {
       this.socket.emit('quickMatch', { mode: 'podkidnoy' });
     });
@@ -349,7 +350,6 @@ class DurakApp {
       this.socket.emit('quickMatch', { mode: 'perevodnoy' });
     });
 
-    // Create Room Modal
     document.getElementById('btn-open-create-modal').addEventListener('click', () => {
       document.getElementById('modal-create-room').classList.add('active');
     });
@@ -362,7 +362,6 @@ class DurakApp {
       document.getElementById('val-players').textContent = e.target.value;
     });
 
-    // Create Form Buttons (Toggles & Bets)
     document.querySelectorAll('.toggle-option').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const parent = e.target.parentElement;
@@ -394,7 +393,6 @@ class DurakApp {
       document.getElementById('modal-create-room').classList.remove('active');
     });
 
-    // In-Game Action Buttons
     document.getElementById('btn-action-take').addEventListener('click', () => {
       if (this.currentRoomId) this.socket.emit('take', { roomId: this.currentRoomId });
     });
@@ -407,7 +405,6 @@ class DurakApp {
       this.socket.emit('leaveRoom');
     });
 
-    // Header actions
     document.getElementById('btn-sound').addEventListener('click', () => {
       const enabled = sounds.toggle();
       document.getElementById('sound-icon').textContent = enabled ? '🔊' : '🔇';
@@ -426,7 +423,6 @@ class DurakApp {
       document.getElementById('modal-shop').classList.remove('active');
     });
 
-    // Shop Tabs
     document.querySelectorAll('.shop-tab').forEach(tab => {
       tab.addEventListener('click', (e) => {
         document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
@@ -435,7 +431,6 @@ class DurakApp {
       });
     });
 
-    // Throw Items Menu
     document.getElementById('btn-throw-menu').addEventListener('click', () => {
       this.toggleThrowMenu();
     });
@@ -454,7 +449,6 @@ class DurakApp {
       });
     });
 
-    // Victory Screen Actions (VK Story / Wall Sharing)
     document.getElementById('btn-share-vk-story').addEventListener('click', async () => {
       const dataUrl = await generateStoryImage({
         player: this.player,
@@ -497,7 +491,7 @@ class DurakApp {
     container.innerHTML = '';
 
     if (!rooms || rooms.length === 0) {
-      container.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--text-muted);">Нет открытых столов. Создайте свой!</div>';
+      container.innerHTML = '<div style="text-align:center; padding: 12px; font-size:12px; color: var(--text-muted);">Нет открытых столов. Создайте свой!</div>';
       return;
     }
 
@@ -621,7 +615,7 @@ class DurakApp {
 
   applyTableSkin(tableSkinId) {
     const colors = {
-      table_emerald: '#114227',
+      table_emerald: '#0b2b1b',
       table_red: '#4a111a',
       table_carbon: '#161a22',
       table_marble: '#0d2238'
