@@ -681,6 +681,10 @@ class DurakApp {
 }
 
 // Instantiate on load
-window.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', () => {
+    window.app = new DurakApp();
+  });
+} else {
   window.app = new DurakApp();
-});
+}

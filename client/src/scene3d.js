@@ -32,14 +32,29 @@ export class Scene3D {
     this.updateCameraForPlayerCount(4, false);
 
     // 3. Renderer with High Dynamic Range & Soft Shadows
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
-    this.container.appendChild(this.renderer.domElement);
+    try {
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch (e) {
+      console.warn('WebGL high-performance failed, trying basic WebGLRenderer:', e);
+      try {
+        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+      } catch (e2) {
+        console.error('WebGL is not available in this environment:', e2);
+        this.renderer = null;
+      }
+    }
+
+    if (this.renderer) {
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.35;
+      if (this.container) {
+        this.container.appendChild(this.renderer.domElement);
+      }
+    }
 
     // 4. Build VIP Casino Room Environment with Panorama Asset
     this.buildVIPEnvironment();
@@ -79,11 +94,11 @@ export class Scene3D {
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffeedd, 0.65);
+    const ambient = new THREE.AmbientLight(0xffeedd, 0.75);
     this.scene.add(ambient);
 
     // Warm Chandelier Overhead Spotlight
-    const chandelierSpot = new THREE.SpotLight(0xffe8c6, 3.4);
+    const chandelierSpot = new THREE.SpotLight(0xffeedd, 2.0);
     chandelierSpot.position.set(0, 7.5, 0);
     chandelierSpot.angle = Math.PI / 3;
     chandelierSpot.penumbra = 0.6;
@@ -95,7 +110,7 @@ export class Scene3D {
     this.lights.chandelierSpot = chandelierSpot;
 
     // Front Fill Soft Light
-    const frontFill = new THREE.DirectionalLight(0xfff5ea, 0.9);
+    const frontFill = new THREE.DirectionalLight(0xfff5ea, 0.8);
     frontFill.position.set(0, 5, 5);
     this.scene.add(frontFill);
     this.lights.frontFill = frontFill;
@@ -290,6 +305,8 @@ export class Scene3D {
 
   animate() {
     requestAnimationFrame(() => this.animate());
-    this.renderer.render(this.scene, this.camera);
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 }

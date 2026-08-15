@@ -13,8 +13,8 @@ export const SUIT_SYMBOLS = {
 };
 
 export const SUIT_COLORS = {
-  hearts: '#e11d48',
-  diamonds: '#e11d48',
+  hearts: '#dc2626',
+  diamonds: '#dc2626',
   clubs: '#0f172a',
   spades: '#0f172a'
 };
@@ -42,18 +42,19 @@ export function createCardFaceTexture(suit, rank) {
   canvas.height = 716;
   const ctx = canvas.getContext('2d');
 
-  // Background - Ivory White with subtle paper texture
-  ctx.fillStyle = '#fcfcfa';
+  // Background - Crisp warm card white
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Border & Inset Gold hairline
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  // Card Outer Shadow / Inset Border
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
-  ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+  // Inset Gold hairline
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+  ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
 
   const color = SUIT_COLORS[suit];
   const symbol = SUIT_SYMBOLS[suit];
@@ -61,20 +62,23 @@ export function createCardFaceTexture(suit, rank) {
 
   // Draw Corner Top-Left
   ctx.fillStyle = color;
-  ctx.font = 'bold 54px Outfit, sans-serif';
+  ctx.font = 'bold 64px "Outfit", "Inter", -apple-system, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(label, 36, 80);
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(label, 32, 82);
 
-  ctx.font = '50px Inter, sans-serif';
-  ctx.fillText(symbol, 38, 134);
+  ctx.font = '56px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.fillText(symbol, 34, 142);
 
   // Draw Corner Bottom-Right (Rotated 180)
   ctx.save();
-  ctx.translate(canvas.width - 36, canvas.height - 80);
+  ctx.translate(canvas.width - 32, canvas.height - 82);
   ctx.rotate(Math.PI);
-  ctx.fillText(label, -18, 0);
-  ctx.font = '50px Inter, sans-serif';
-  ctx.fillText(symbol, -16, 54);
+  ctx.font = 'bold 64px "Outfit", "Inter", -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(label, 0, 0);
+  ctx.font = '56px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.fillText(symbol, 2, 60);
   ctx.restore();
 
   // Draw Center Art
@@ -85,15 +89,15 @@ export function createCardFaceTexture(suit, rank) {
     drawCourtCardArt(ctx, rank, suit, color);
   } else if (rank === 14) {
     ctx.fillStyle = color;
-    ctx.font = 'bold 190px Inter, sans-serif';
+    ctx.font = 'bold 220px "Inter", "Segoe UI Symbol", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(symbol, 0, -10);
 
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(0, 0, 150, 0, Math.PI * 2);
+    ctx.arc(0, 0, 160, 0, Math.PI * 2);
     ctx.stroke();
   } else {
     drawPips(ctx, rank, symbol, color);
@@ -103,37 +107,38 @@ export function createCardFaceTexture(suit, rank) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
   cardTextureCache.set(cacheKey, texture);
   return texture;
 }
 
 function drawCourtCardArt(ctx, rank, suit, color) {
-  ctx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
   ctx.lineWidth = 4;
   ctx.strokeRect(-140, -200, 280, 400);
 
-  ctx.fillStyle = 'rgba(245, 245, 235, 0.65)';
+  ctx.fillStyle = '#f8fafc';
   ctx.fillRect(-136, -196, 272, 392);
 
   ctx.fillStyle = color;
-  ctx.font = 'bold 110px Cinzel, serif';
+  ctx.font = 'bold 120px "Cinzel", Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   const courtTitles = { 11: 'JACK', 12: 'QUEEN', 13: 'KING' };
-  ctx.fillText(RANK_LABELS[rank], 0, -30);
+  ctx.fillText(RANK_LABELS[rank], 0, -35);
 
-  ctx.font = '60px Inter, sans-serif';
-  ctx.fillText(SUIT_SYMBOLS[suit], 0, 60);
+  ctx.font = '72px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.fillText(SUIT_SYMBOLS[suit], 0, 55);
 
-  ctx.font = '600 18px Outfit, sans-serif';
-  ctx.fillStyle = '#64748b';
+  ctx.font = '700 20px "Outfit", sans-serif';
+  ctx.fillStyle = '#475569';
   ctx.fillText(courtTitles[rank], 0, 130);
 }
 
 function drawPips(ctx, count, symbol, color) {
   ctx.fillStyle = color;
-  ctx.font = '76px Inter, sans-serif';
+  ctx.font = 'bold 84px "Inter", "Segoe UI Symbol", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 

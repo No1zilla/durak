@@ -26,6 +26,7 @@
   "author": "Antigravity Team",
   "license": "MIT",
   "devDependencies": {
+    "puppeteer": "^25.7.0",
     "socket.io-client": "^4.8.3"
   }
 }

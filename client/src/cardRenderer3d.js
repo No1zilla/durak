@@ -84,11 +84,16 @@ export class CardRenderer3D {
     const total = cards.length;
     if (total === 0) return;
 
-    // Fan Parameters calibrated precisely for Camera Y=4.6, Z=5.2
-    const maxSpread = Math.min(0.55, total * 0.08);
-    const baseY = 1.85;
-    const baseZ = 3.35;
-    const arcRadius = 3.6;
+    const aspect = window.innerWidth / window.innerHeight;
+    const isPortrait = aspect < 1.0;
+
+    // Mobile / Portrait responsive spread and base positioning
+    const spreadScale = isPortrait ? Math.min(1.0, aspect / 0.7) : 1.0;
+    const maxSpread = Math.min(0.38 * spreadScale, total * 0.05 * spreadScale);
+    const arcRadius = isPortrait ? 2.8 : 3.6;
+    const baseY = isPortrait ? 2.15 : 1.85;
+    const baseZ = isPortrait ? 3.10 : 3.35;
+    const rotX = isPortrait ? -0.50 : -0.65;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
@@ -108,6 +113,7 @@ export class CardRenderer3D {
       const targetX = Math.sin(angle) * arcRadius;
       const targetZ = baseZ - (Math.cos(angle) * 0.25) + (i * 0.02);
       const targetY = baseY - (Math.abs(progress - 0.5) * 0.12);
+      mesh.userData.origPos = { x: targetX, y: targetY, z: targetZ };
 
       if (isNew) {
         gsap.to(mesh.position, {
@@ -120,7 +126,7 @@ export class CardRenderer3D {
           onStart: () => sounds.playCardSlide()
         });
         gsap.to(mesh.rotation, {
-          x: -0.65,
+          x: rotX,
           y: 0,
           z: -angle * 0.85,
           duration: 0.5,
@@ -129,7 +135,7 @@ export class CardRenderer3D {
         });
       } else {
         gsap.to(mesh.position, { x: targetX, y: targetY, z: targetZ, duration: 0.25, ease: 'power2.out' });
-        gsap.to(mesh.rotation, { x: -0.65, y: 0, z: -angle * 0.85, duration: 0.25, ease: 'power2.out' });
+        gsap.to(mesh.rotation, { x: rotX, y: 0, z: -angle * 0.85, duration: 0.25, ease: 'power2.out' });
       }
     });
   }
@@ -311,6 +317,8 @@ export class CardRenderer3D {
     };
 
     const onPointerDown = (e) => {
+      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.scene3D.camera);
       const handMeshes = Array.from(this.cardMeshes.values()).filter(m => m.userData.isHand);
       const intersects = this.raycaster.intersectObjects(handMeshes);
@@ -335,7 +343,13 @@ export class CardRenderer3D {
   }
 
   resetHover(mesh) {
-    if (!mesh) return;
-    this.renderLocalHand(this.handCards);
+    if (!mesh || !mesh.userData.origPos) return;
+    gsap.to(mesh.position, {
+      x: mesh.userData.origPos.x,
+      y: mesh.userData.origPos.y,
+      z: mesh.userData.origPos.z,
+      duration: 0.15,
+      ease: 'power1.out'
+    });
   }
 }
