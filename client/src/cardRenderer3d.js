@@ -89,11 +89,11 @@ export class CardRenderer3D {
 
     // Mobile / Portrait responsive spread and base positioning
     const spreadScale = isPortrait ? Math.min(1.0, aspect / 0.7) : 1.0;
-    const maxSpread = Math.min(0.40 * spreadScale, total * 0.055 * spreadScale);
-    const arcRadius = isPortrait ? 2.8 : 3.4;
-    const baseY = isPortrait ? 1.80 : 1.75;
-    const baseZ = isPortrait ? 3.40 : 3.45;
-    const rotX = isPortrait ? -0.56 : -0.70;
+    const maxSpread = Math.min(0.42 * spreadScale, total * 0.065 * spreadScale);
+    const arcRadius = isPortrait ? 2.6 : 3.2;
+    const baseY = isPortrait ? 1.88 : 1.75;
+    const baseZ = isPortrait ? 3.45 : 3.50;
+    const rotX = isPortrait ? 0.78 : 0.74;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
@@ -111,8 +111,8 @@ export class CardRenderer3D {
       const angle = (progress - 0.5) * maxSpread;
 
       const targetX = Math.sin(angle) * arcRadius;
-      const targetZ = baseZ - (Math.cos(angle) * 0.25) + (i * 0.02);
-      const targetY = baseY - (Math.abs(progress - 0.5) * 0.12);
+      const targetZ = baseZ - (Math.cos(angle) * 0.22) + (i * 0.02);
+      const targetY = baseY - (Math.abs(progress - 0.5) * 0.08);
       mesh.userData.origPos = { x: targetX, y: targetY, z: targetZ };
 
       if (isNew) {
@@ -163,18 +163,22 @@ export class CardRenderer3D {
       const seatPos = seatPositions[relativeIdx];
       const count = Math.min(6, p.cardsCount);
 
+      const feltX = seatPos.x * 0.72;
+      const feltZ = seatPos.z * 0.72;
+      const angleToCenter = Math.atan2(feltX, feltZ);
+
       for (let c = 0; c < count; c++) {
         const dummyCard = { suit: 'spades', rank: 6, id: `opp_${p.id}_${c}` };
         const mesh = this.createCardMesh(dummyCard, false);
         mesh.scale.set(0.65, 0.65, 0.65);
 
-        const offsetAngle = (c - (count - 1) / 2) * 0.12;
+        const fanOffset = (c - (count - 1) / 2) * 0.12;
         mesh.position.set(
-          seatPos.x * 0.8 + Math.sin(offsetAngle) * 0.3,
-          0.3 + (c * 0.01),
-          seatPos.z * 0.8
+          feltX + Math.cos(angleToCenter) * fanOffset * 0.6,
+          0.04 + (c * 0.008),
+          feltZ - Math.sin(angleToCenter) * fanOffset * 0.6
         );
-        mesh.rotation.set(-0.3, -Math.atan2(seatPos.x, -seatPos.z), offsetAngle);
+        mesh.rotation.set(0, -angleToCenter + fanOffset, 0);
 
         this.scene.add(mesh);
         this.opponentCardMeshes.push(mesh);
@@ -191,7 +195,7 @@ export class CardRenderer3D {
     // Trump Card (Horizontal, Face UP under deck)
     if (!this.trumpMesh) {
       this.trumpMesh = this.createCardMesh(trumpCard, true);
-      this.trumpMesh.position.set(-1.9, 0.04, -0.3);
+      this.trumpMesh.position.set(0.55, 0.04, -0.6);
       this.trumpMesh.rotation.set(0, Math.PI / 2, 0);
       this.scene.add(this.trumpMesh);
     }
@@ -206,7 +210,7 @@ export class CardRenderer3D {
       for (let i = 0; i < visualStackCount; i++) {
         const dummyCard = { suit: trumpCard.suit, rank: 6, id: `deck_${i}` };
         const mesh = this.createCardMesh(dummyCard, false);
-        mesh.position.set(-1.9 + (Math.random() * 0.02), 0.06 + (i * 0.016), -0.3 + (Math.random() * 0.02));
+        mesh.position.set(0 + (Math.random() * 0.015), 0.06 + (i * 0.015), -0.6 + (Math.random() * 0.015));
         mesh.rotation.set(0, (Math.random() - 0.5) * 0.06, 0);
         this.scene.add(mesh);
         this.deckMeshes.push(mesh);
@@ -230,7 +234,7 @@ export class CardRenderer3D {
     }
 
     const totalPairs = pairs.length;
-    const spacing = 1.05;
+    const spacing = 1.15;
     const startX = -((totalPairs - 1) * spacing) / 2;
 
     pairs.forEach((pair, idx) => {
@@ -248,21 +252,23 @@ export class CardRenderer3D {
         gsap.to(attackMesh.position, {
           x: posX,
           y: 0.05,
-          z: 0.1,
+          z: 0.65,
           duration: 0.4,
           ease: 'power2.out',
-          onStart: () => sounds.playCardSlide(),
-          onComplete: () => sounds.playCardSnap()
+          onStart: () => sounds.playCardSlide()
         });
         gsap.to(attackMesh.rotation, {
           x: 0,
-          y: 0,
-          z: (Math.random() - 0.5) * 0.15,
-          duration: 0.4
+          y: (idx % 2 === 0 ? 0.04 : -0.04),
+          z: 0,
+          duration: 0.4,
+          ease: 'power2.out'
         });
+      } else {
+        attackMesh.position.set(posX, 0.05, 0.65);
       }
 
-      // Defense Card
+      // Defense Card (if played)
       if (pair.defense) {
         let defMesh = this.cardMeshes.get(pair.defense.id);
         if (!defMesh) {
@@ -271,21 +277,24 @@ export class CardRenderer3D {
           this.scene.add(defMesh);
           this.cardMeshes.set(pair.defense.id, defMesh);
 
-          defMesh.position.set(posX, 1.4, 0.8);
+          defMesh.position.set(0, 1.8, 2.2);
           gsap.to(defMesh.position, {
-            x: posX + 0.14,
-            y: 0.09,
-            z: -0.16,
-            duration: 0.35,
-            ease: 'back.out(1.4)',
-            onComplete: () => sounds.playCardSnap()
+            x: posX + 0.10,
+            y: 0.08,
+            z: 0.42,
+            duration: 0.4,
+            ease: 'power2.out',
+            onStart: () => sounds.playCardSlide()
           });
           gsap.to(defMesh.rotation, {
             x: 0,
-            y: 0,
-            z: 0.28,
-            duration: 0.35
+            y: (idx % 2 === 0 ? -0.05 : 0.05),
+            z: 0,
+            duration: 0.4,
+            ease: 'power2.out'
           });
+        } else {
+          defMesh.position.set(posX + 0.10, 0.08, 0.42);
         }
       }
     });

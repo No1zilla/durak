@@ -91,7 +91,7 @@ class RoomManager {
     this.playerRooms.set(player.id, roomId);
     if (player.socketId) this.playerRooms.set(player.socketId, roomId);
 
-    if (room.game.players.length >= 2 && room.game.state === GAME_STATES.WAITING) {
+    if (room.game.players.length >= room.game.maxPlayers && room.game.state === GAME_STATES.WAITING) {
       room.game.start();
     }
 
@@ -142,8 +142,9 @@ class RoomManager {
     this.addBot(room.id, 'Максим (Бот)', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop');
     this.addBot(room.id, 'Ольга (Бот)', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop');
 
-    // Start game immediately
-    room.game.start();
+    if (room.game.state === GAME_STATES.WAITING) {
+      room.game.start();
+    }
 
     this.broadcastState(room.id);
     setTimeout(() => this.handleBotTurns(room.id), 1500);
@@ -176,7 +177,7 @@ class RoomManager {
       chips: 5000
     });
 
-    if (room.game.state === GAME_STATES.WAITING && room.game.players.length >= 2) {
+    if (room.game.state === GAME_STATES.WAITING && room.game.players.length >= room.game.maxPlayers) {
       room.game.start();
     }
 

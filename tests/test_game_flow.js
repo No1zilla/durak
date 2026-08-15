@@ -40,6 +40,20 @@ async function runTests() {
     });
   }
 
+  function waitForState(predicate, timeoutMs = TIMEOUT) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timeout waiting for gameState predicate')), timeoutMs);
+      const handler = (data) => {
+        if (predicate(data)) {
+          clearTimeout(timer);
+          socket.off('gameState', handler);
+          resolve(data);
+        }
+      };
+      socket.on('gameState', handler);
+    });
+  }
+
   try {
     // ── TEST 1: Connection ──
     console.log('1️⃣  Connection');
@@ -68,16 +82,16 @@ async function runTests() {
     const roomList = await waitFor('roomList');
     assert(Array.isArray(roomList), `Room list received (${roomList.length} rooms)`);
 
-    // ── TEST 4: Quick Match ──
+    // ── TEST 4 & 5: Quick Match & Initial Game State ──
     console.log('4️⃣  Quick Match (Подкидной)');
+    const pState = waitForState(s => ['ATTACKING', 'DEFENDING'].includes(s.state));
     socket.emit('quickMatch', { mode: 'podkidnoy' });
 
     const joinData = await waitFor('joinedRoom');
     assert(joinData.roomId !== undefined, `Joined room: ${joinData.roomId}`);
 
-    // ── TEST 5: Initial Game State ──
     console.log('5️⃣  Initial Game State');
-    const state1 = await waitFor('gameState');
+    const state1 = await pState;
     assert(['ATTACKING', 'DEFENDING'].includes(state1.state), `Game state: ${state1.state} (active)`);
     assert(state1.players.length === 4, `Players: ${state1.players.length} (expected 4 — 1 human + 3 bots)`);
     assert(state1.trumpSuit !== undefined, `Trump suit: ${state1.trumpSuit}`);

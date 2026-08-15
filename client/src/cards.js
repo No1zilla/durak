@@ -122,6 +122,7 @@ export function createCardFaceTexture(suit, rank) {
   ctx.restore();
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -246,6 +247,7 @@ export function createCardBackTexture(skinId = 'deck_classic') {
 
   if (assetPaths[skinId]) {
     const tex = textureLoader.load(assetPaths[skinId]);
+    tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = true;

@@ -45,7 +45,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--bg-dark);
+  background: #080605 url('../assets/table/casino_bg_portrait.jpg') top center / cover no-repeat;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 14px;
@@ -61,6 +61,7 @@ html, body {
   height: 100vh;
   z-index: 1;
   pointer-events: auto;
+  background: transparent;
 }
 
 .vignette-overlay {
