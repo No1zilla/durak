@@ -38,7 +38,7 @@ class DurakGame {
     this.attackerIndex = 0;
     this.defenderIndex = 1;
     this.turnStartTime = null;
-    this.timer = null;
+    this.turnTimer = null;
     this.passedPlayerIds = new Set();
     this.isFirstBita = true; // First bout maximum 5 cards rule
     this.state = GAME_STATES.WAITING;
@@ -47,6 +47,7 @@ class DurakGame {
 
     this.history = []; // Event log for match breakdown
     this.onStateChange = options.onStateChange || (() => {});
+    this.onTurnTimeout = options.onTurnTimeout || (() => {}); // Called when turn timer expires
   }
 
   addPlayer(player) {
@@ -108,7 +109,7 @@ class DurakGame {
     this.determineFirstAttacker();
 
     this.state = GAME_STATES.ATTACKING;
-    this.turnStartTime = Date.now();
+    this.resetTurnTimer();
     this.log(`Игра началась! Козырь: ${this.trumpSuit.toUpperCase()}`);
     return true;
   }
@@ -203,7 +204,7 @@ class DurakGame {
 
     this.passedPlayerIds.clear();
     this.state = GAME_STATES.DEFENDING;
-    this.turnStartTime = Date.now();
+    this.resetTurnTimer();
     this.log(`${player.name} ходит картой ${card.label}${card.symbol}`);
 
     return { success: true, card, pairIndex: this.tablePairs.length - 1 };
@@ -259,7 +260,7 @@ class DurakGame {
     this.attackerIndex = this.defenderIndex;
     this.defenderIndex = nextDefenderIndex;
     this.passedPlayerIds.clear();
-    this.turnStartTime = Date.now();
+    this.resetTurnTimer();
 
     this.log(`${defender.name} переводит ход на ${nextDefender.name} картой ${card.label}${card.symbol}!`);
     return { success: true, card, newDefenderId: nextDefender.id };
@@ -289,7 +290,7 @@ class DurakGame {
 
     defender.hand.splice(cardIndex, 1);
     pair.defense = defendCard;
-    this.turnStartTime = Date.now();
+    this.resetTurnTimer();
 
     this.log(`${defender.name} бьёт ${pair.attack.label}${pair.attack.symbol} картой ${defendCard.label}${defendCard.symbol}`);
 
@@ -378,7 +379,9 @@ class DurakGame {
 
     if (this.state !== GAME_STATES.GAME_OVER) {
       this.state = GAME_STATES.ATTACKING;
-      this.turnStartTime = Date.now();
+      this.resetTurnTimer();
+    } else {
+      this.clearTurnTimer();
     }
 
     return { success: true, defenderId: defender.id, collectedCards };
@@ -406,7 +409,9 @@ class DurakGame {
 
     if (this.state !== GAME_STATES.GAME_OVER) {
       this.state = GAME_STATES.ATTACKING;
-      this.turnStartTime = Date.now();
+      this.resetTurnTimer();
+    } else {
+      this.clearTurnTimer();
     }
   }
 
@@ -469,6 +474,54 @@ class DurakGame {
   log(message) {
     this.history.push({ time: Date.now(), message });
     this.onStateChange(this);
+  }
+
+  /**
+   * Server-side turn timer. Auto-take for defender, auto-pass for attackers.
+   */
+  resetTurnTimer() {
+    this.clearTurnTimer();
+    this.turnStartTime = Date.now();
+
+    this.turnTimer = setTimeout(() => {
+      if (this.state === GAME_STATES.GAME_OVER || this.state === GAME_STATES.WAITING) return;
+
+      const defender = this.currentDefender;
+      const attacker = this.currentAttacker;
+
+      if (this.state === GAME_STATES.DEFENDING && defender && defender.outRank === null) {
+        // Defender ran out of time → auto-take
+        this.log(`⏱ ${defender.name}: время вышло! Забирает карты`);
+        this.take(defender.id);
+        this.onTurnTimeout(this);
+      } else if (this.state === GAME_STATES.ATTACKING) {
+        // All attackers ran out of time → auto-pass everyone
+        const activePlayers = this.getActivePlayers().filter(p => p.id !== defender?.id);
+        for (const p of activePlayers) {
+          this.passedPlayerIds.add(p.id);
+        }
+        const allDefended = this.tablePairs.length > 0 && this.tablePairs.every(p => p.defense !== null);
+        if (allDefended) {
+          this.log('⏱ Время вышло! Бита');
+          this.resolveBita();
+        } else if (this.tablePairs.length === 0 && attacker && attacker.outRank === null) {
+          // Nobody attacked at all — force attacker to play lowest card
+          const lowest = attacker.hand.sort((a, b) => a.rank - b.rank)[0];
+          if (lowest) {
+            this.log(`⏱ ${attacker.name}: время вышло! Автоход`);
+            this.attack(attacker.id, lowest.id);
+          }
+        }
+        this.onTurnTimeout(this);
+      }
+    }, this.turnTimeLimit * 1000);
+  }
+
+  clearTurnTimer() {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
   }
 
   /**

@@ -285,14 +285,26 @@ class DurakApp {
 
     const timerBar = document.getElementById('hud-timer-bar');
     const timerText = document.getElementById('hud-timer-text');
-    if (state.turnStartTime) {
-      const elapsedSec = (Date.now() - state.turnStartTime) / 1000;
-      const remainingSec = Math.max(0, Math.ceil(state.turnTimeLimit - elapsedSec));
-      const pct = (remainingSec / state.turnTimeLimit) * 100;
-      timerBar.style.width = `${pct}%`;
-      timerText.textContent = `${remainingSec}s`;
-      if (pct < 30) timerBar.classList.add('danger');
-      else timerBar.classList.remove('danger');
+
+    // Clear previous timer interval
+    if (this._timerInterval) clearInterval(this._timerInterval);
+
+    if (state.turnStartTime && state.turnTimeLimit) {
+      const updateTimer = () => {
+        const elapsedSec = (Date.now() - state.turnStartTime) / 1000;
+        const remainingSec = Math.max(0, Math.ceil(state.turnTimeLimit - elapsedSec));
+        const pct = (remainingSec / state.turnTimeLimit) * 100;
+        timerBar.style.width = `${pct}%`;
+        timerText.textContent = `${remainingSec}s`;
+        if (pct < 30) timerBar.classList.add('danger');
+        else timerBar.classList.remove('danger');
+        if (remainingSec <= 0 && this._timerInterval) {
+          clearInterval(this._timerInterval);
+          this._timerInterval = null;
+        }
+      };
+      updateTimer();
+      this._timerInterval = setInterval(updateTimer, 1000);
     }
   }
 

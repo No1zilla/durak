@@ -21,7 +21,11 @@ class RoomManager {
       deckSize: settings.deckSize || 36,
       maxPlayers,
       bet: settings.bet || 100,
-      turnTimeLimit: settings.turnTimeLimit || 30
+      turnTimeLimit: settings.turnTimeLimit || 30,
+      onTurnTimeout: () => {
+        this.broadcastState(roomId);
+        this.handleBotTurns(roomId);
+      }
     });
 
     if (hostPlayer) {
