@@ -118,14 +118,14 @@
 /* Action Prompt Bubble */
 .action-prompt-bubble {
   position: absolute;
-  bottom: 290px;
+  top: calc(env(safe-area-inset-top, 12px) + 64px);
   left: 50%;
   transform: translateX(-50%);
   background: rgba(14, 18, 27, 0.88);
   backdrop-filter: blur(16px);
   border: 1px solid var(--accent-gold);
   color: #fff;
-  padding: 8px 20px;
+  padding: 6px 18px;
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 600;
@@ -135,55 +135,137 @@
   white-space: nowrap;
 }
 
-/* Bottom Game Action Controls */
-.game-action-controls {
+/* Floating Frosted Glass Action Console (As in Concept Art) */
+.hud-action-console {
   position: absolute;
-  bottom: 230px;
-  left: 0;
-  right: 0;
+  bottom: 210px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 420px;
+  padding: 10px 14px 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(14, 18, 28, 0.85);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(212, 175, 55, 0.15);
   display: flex;
-  justify-content: center;
-  gap: 12px;
-  z-index: 30;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
   pointer-events: auto;
 }
 
-.btn-game-action {
-  padding: 12px 28px;
-  border-radius: var(--radius-md);
-  border: none;
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+.console-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.btn-game-action:active {
+.console-timer-track {
+  flex: 1;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.console-timer-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #eab308 100%);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.6);
+  transition: width 0.2s linear;
+}
+
+.console-timer-fill.danger {
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+}
+
+.console-timer-text {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--accent-gold);
+  min-width: 30px;
+  text-align: right;
+}
+
+.btn-console-tool {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.btn-console-tool:active {
+  transform: scale(0.9);
+}
+
+.console-buttons-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.btn-console-action {
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-console-action:active:not(.disabled) {
   transform: scale(0.94);
 }
 
-.btn-game-action.gold {
-  background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%);
+.btn-console-action.blue {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.btn-console-action.gold {
+  background: linear-gradient(135deg, #ca8a04 0%, #facc15 100%);
   color: #000;
-  box-shadow: 0 6px 20px var(--accent-gold-glow);
+  box-shadow: 0 4px 14px rgba(234, 179, 8, 0.4);
 }
 
-.btn-game-action.red {
-  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+.btn-console-action.red {
+  background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
   color: #fff;
-  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
 }
 
-.btn-game-action.blue {
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  color: #fff;
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+.btn-console-action.gray {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  color: #e5e7eb;
 }
 
-.btn-game-action.hidden {
-  display: none;
+.btn-console-action.disabled {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+  pointer-events: none;
+  box-shadow: none;
 }
 
 .hand-hint {
@@ -218,18 +300,15 @@
   transition: transform 0.2s ease;
 }
 
-.seat-badge-3d:active {
-  transform: translate(-50%, -50%) scale(1.08);
-}
-
 .seat-avatar-ring {
   position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  border: 2px solid rgba(212, 175, 55, 0.7);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8), 0 0 15px rgba(212, 175, 55, 0.3);
   overflow: hidden;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .seat-avatar-ring img {
@@ -239,48 +318,42 @@
 }
 
 .seat-badge-3d.active-turn .seat-avatar-ring {
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 20px var(--accent-gold);
-  animation: pulseRing 1.5s infinite alternate;
+  border-color: #facc15;
+  box-shadow: 0 0 25px rgba(250, 204, 21, 0.8);
+  animation: pulseRing 1.2s infinite alternate;
 }
 
 .seat-badge-3d.defender .seat-avatar-ring {
-  border-color: var(--accent-red);
-}
-
-@keyframes pulseRing {
-  0% { box-shadow: 0 0 10px var(--accent-gold); }
-  100% { box-shadow: 0 0 24px var(--accent-gold); }
+  border-color: #ef4444;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
 }
 
 .seat-name-tag {
   margin-top: 4px;
-  background: rgba(10, 14, 22, 0.85);
-  backdrop-filter: blur(8px);
-  padding: 2px 8px;
+  background: rgba(10, 14, 22, 0.9);
+  backdrop-filter: blur(10px);
+  padding: 3px 10px;
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 700;
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
+  letter-spacing: 0.3px;
 }
 
 .seat-card-count {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: var(--accent-gold);
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #d97706 0%, #facc15 100%);
   color: #000;
   font-size: 10px;
   font-weight: 800;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 /* Radial Throw Items Menu */

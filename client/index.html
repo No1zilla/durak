@@ -128,28 +128,38 @@
         <button id="btn-throw-menu" class="btn-icon-small" title="Бросить предмет">🍅</button>
       </div>
 
-      <!-- Turn Timer Bar -->
-      <div class="turn-timer-container">
-        <div class="turn-timer-bar" id="hud-timer-bar"></div>
-        <span class="turn-timer-text" id="hud-timer-text">30s</span>
-      </div>
-
       <!-- Action Prompt Banner -->
       <div id="action-prompt" class="action-prompt-bubble">
         Ваш ход! Выберите карту для атаки
       </div>
 
-      <!-- Bottom Action Buttons Bar -->
-      <div class="game-action-controls" id="game-actions">
-        <button id="btn-action-take" class="btn-game-action red hidden">
-          <span>ЗАБРАТЬ</span>
-        </button>
-        <button id="btn-action-pass" class="btn-game-action gold hidden">
-          <span>БИТА</span>
-        </button>
-        <button id="btn-action-transfer" class="btn-game-action blue hidden">
-          <span>ПЕРЕВЕСТИ</span>
-        </button>
+      <!-- Floating Frosted Glass Action Console (Match Concept Art) -->
+      <div class="hud-action-console glass-panel" id="hud-console">
+        <!-- Top Status Row: Timer + Audio + Chat -->
+        <div class="console-top-row">
+          <div class="console-timer-track">
+            <div class="console-timer-fill" id="hud-timer-bar"></div>
+          </div>
+          <span class="console-timer-text" id="hud-timer-text">30s</span>
+          <button id="btn-sound-toggle" class="btn-console-tool" title="Звук">🔊</button>
+          <button id="btn-chat-toggle" class="btn-console-tool" title="Чат">💬</button>
+        </div>
+
+        <!-- 4 Capsule Action Buttons Row -->
+        <div class="console-buttons-row">
+          <button id="btn-action-transfer" class="btn-console-action blue">
+            <span>ПЕРЕВЕСТИ</span>
+          </button>
+          <button id="btn-action-defend" class="btn-console-action gold">
+            <span>ПОБИТЬ</span>
+          </button>
+          <button id="btn-action-take" class="btn-console-action red">
+            <span>ВЗЯТЬ</span>
+          </button>
+          <button id="btn-action-pass" class="btn-console-action gray">
+            <span>БИТА</span>
+          </button>
+        </div>
       </div>
 
       <!-- Bottom Hand Card Fan Hint -->

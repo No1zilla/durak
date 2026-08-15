@@ -252,32 +252,36 @@ class DurakApp {
     const isDefender = state.defenderId === this.player.id;
     const isTransferable = state.mode === 'perevodnoy';
 
+    const btnTransfer = document.getElementById('btn-action-transfer');
+    const btnDefend = document.getElementById('btn-action-defend');
     const btnTake = document.getElementById('btn-action-take');
     const btnPass = document.getElementById('btn-action-pass');
-    const btnTransfer = document.getElementById('btn-action-transfer');
     const promptBubble = document.getElementById('action-prompt');
 
-    btnTake.classList.add('hidden');
-    btnPass.classList.add('hidden');
-    btnTransfer.classList.add('hidden');
+    // Default disable all
+    btnTransfer?.classList.add('disabled');
+    btnDefend?.classList.add('disabled');
+    btnTake?.classList.add('disabled');
+    btnPass?.classList.add('disabled');
 
     if (isDefender) {
       promptBubble.textContent = '🛡️ Вы отбиваетесь! Выберите карту или заберите';
       if (state.tablePairs.length > 0) {
-        btnTake.classList.remove('hidden');
+        btnTake?.classList.remove('disabled');
+        btnDefend?.classList.remove('disabled');
       }
       if (isTransferable && state.tablePairs.every(p => !p.defense)) {
-        btnTransfer.classList.remove('hidden');
+        btnTransfer?.classList.remove('disabled');
       }
     } else if (isAttacker) {
       promptBubble.textContent = state.tablePairs.length === 0 ? '⚔️ Ваш ход! Выберите карту для атаки' : '⚔️ Подкиньте карту или нажмите Бита';
       if (state.tablePairs.length > 0) {
-        btnPass.classList.remove('hidden');
+        btnPass?.classList.remove('disabled');
       }
     } else {
       if (state.tablePairs.length > 0) {
         promptBubble.textContent = 'Можно подкинуть карту подходящего номинала';
-        btnPass.classList.remove('hidden');
+        btnPass?.classList.remove('disabled');
       } else {
         promptBubble.textContent = 'Ожидание хода соперника...';
       }
@@ -433,26 +437,52 @@ class DurakApp {
       document.getElementById('modal-create-room').classList.remove('active');
     });
 
-    document.getElementById('btn-action-take').addEventListener('click', () => {
+    document.getElementById('btn-action-take')?.addEventListener('click', () => {
       if (this.currentRoomId) this.socket.emit('take', { roomId: this.currentRoomId });
     });
 
-    document.getElementById('btn-action-pass').addEventListener('click', () => {
+    document.getElementById('btn-action-pass')?.addEventListener('click', () => {
       if (this.currentRoomId) this.socket.emit('pass', { roomId: this.currentRoomId });
     });
 
-    document.getElementById('btn-leave-game').addEventListener('click', () => {
+    document.getElementById('btn-action-defend')?.addEventListener('click', () => {
+      this.showToast('Нажмите на карту в руке, чтобы побить!');
+    });
+
+    document.getElementById('btn-action-transfer')?.addEventListener('click', () => {
+      if (this.currentRoomId && this.gameState && this.gameState.tablePairs.length > 0) {
+        const targetRank = this.gameState.tablePairs[0].attack.rank;
+        const myHand = this.gameState.players.find(p => p.id === this.player.id)?.hand || [];
+        const transferCard = myHand.find(c => c.rank === targetRank);
+        if (transferCard) {
+          this.socket.emit('transfer', { roomId: this.currentRoomId, cardId: transferCard.id });
+        } else {
+          this.showToast(`Нужна карта номинала ${this.gameState.tablePairs[0].attack.label} для перевода`);
+        }
+      }
+    });
+
+    document.getElementById('btn-sound-toggle')?.addEventListener('click', () => {
+      const enabled = sounds.toggle();
+      document.getElementById('btn-sound-toggle').textContent = enabled ? '🔊' : '🔇';
+    });
+
+    document.getElementById('btn-chat-toggle')?.addEventListener('click', () => {
+      this.showToast('💬 Быстрый чат: «Спасибо за игру!», «Удачи!», «Хороший ход!»');
+    });
+
+    document.getElementById('btn-leave-game')?.addEventListener('click', () => {
       this.socket.emit('leaveRoom');
     });
 
-    document.getElementById('btn-add-bot').addEventListener('click', () => {
+    document.getElementById('btn-add-bot')?.addEventListener('click', () => {
       if (this.currentRoomId) {
         this.socket.emit('addBot', { roomId: this.currentRoomId });
         this.showToast('Бот добавлен за стол 🤖');
       }
     });
 
-    document.getElementById('btn-sound').addEventListener('click', () => {
+    document.getElementById('btn-sound')?.addEventListener('click', () => {
       const enabled = sounds.toggle();
       document.getElementById('sound-icon').textContent = enabled ? '🔊' : '🔇';
     });

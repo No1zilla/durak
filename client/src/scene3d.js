@@ -76,12 +76,26 @@ export class Scene3D {
   }
 
   buildVIPEnvironment() {
-    const roomGeo = new THREE.CylinderGeometry(14, 14, 12, 32, 1, true);
+    const roomGeo = new THREE.CylinderGeometry(16, 16, 14, 36, 1, true);
     
-    // Load Room Panorama Texture Asset
-    const roomTexture = this.textureLoader.load('assets/table/room_panorama.svg');
+    // Load HD Photorealistic Room Panorama Texture Asset
+    const roomTexture = this.textureLoader.load('assets/table/room_panorama.jpg', (tex) => {
+      // Create PBR Environment Map for Real Physical Reflections
+      if (this.renderer) {
+        try {
+          const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+          pmremGenerator.compileEquirectangularShader();
+          const envMap = pmremGenerator.fromEquirectangular(tex).texture;
+          this.scene.environment = envMap;
+          pmremGenerator.dispose();
+        } catch (e) {
+          console.warn('PMREM environment creation fallback:', e);
+        }
+      }
+    });
+
     roomTexture.wrapS = THREE.RepeatWrapping;
-    roomTexture.repeat.set(2, 1);
+    roomTexture.repeat.set(1.5, 1);
 
     const roomMat = new THREE.MeshBasicMaterial({
       map: roomTexture,
@@ -89,34 +103,55 @@ export class Scene3D {
     });
 
     const roomMesh = new THREE.Mesh(roomGeo, roomMat);
-    roomMesh.position.y = 3;
+    roomMesh.position.y = 3.5;
     this.scene.add(roomMesh);
   }
 
+  updateCameraForPlayerCount(count, animate = true) {
+    this.playerCount = count;
+    const isMobile = window.innerWidth / window.innerHeight < 1.0;
+
+    // Cinematic angle showing table and luxury casino room background
+    const targetY = isMobile ? 4.2 : 4.4;
+    const targetZ = isMobile ? 5.6 : 5.2;
+    const targetAngleX = isMobile ? -0.58 : -0.65;
+
+    if (this.camera) {
+      if (animate && window.gsap) {
+        gsap.to(this.camera.position, { y: targetY, z: targetZ, duration: 1.0, ease: 'power2.out' });
+        gsap.to(this.camera.rotation, { x: targetAngleX, duration: 1.0, ease: 'power2.out' });
+      } else {
+        this.camera.position.set(0, targetY, targetZ);
+        this.camera.rotation.set(targetAngleX, 0, 0);
+      }
+    }
+  }
+
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffeedd, 0.75);
+    const ambient = new THREE.AmbientLight(0xfff1e6, 0.45);
     this.scene.add(ambient);
 
     // Warm Chandelier Overhead Spotlight
-    const chandelierSpot = new THREE.SpotLight(0xffeedd, 2.0);
+    const chandelierSpot = new THREE.SpotLight(0xffeedd, 1.8);
     chandelierSpot.position.set(0, 7.5, 0);
     chandelierSpot.angle = Math.PI / 3;
     chandelierSpot.penumbra = 0.6;
     chandelierSpot.castShadow = true;
     chandelierSpot.shadow.mapSize.width = 2048;
     chandelierSpot.shadow.mapSize.height = 2048;
-    chandelierSpot.shadow.bias = -0.0005;
+    chandelierSpot.shadow.bias = -0.0002;
+    chandelierSpot.shadow.radius = 2.0;
     this.scene.add(chandelierSpot);
     this.lights.chandelierSpot = chandelierSpot;
 
     // Front Fill Soft Light
-    const frontFill = new THREE.DirectionalLight(0xfff5ea, 0.8);
+    const frontFill = new THREE.DirectionalLight(0xfff5ea, 0.6);
     frontFill.position.set(0, 5, 5);
     this.scene.add(frontFill);
     this.lights.frontFill = frontFill;
 
     // Golden Rim Glow
-    const rimPoint = new THREE.PointLight(0xd4af37, 1.8, 14);
+    const rimPoint = new THREE.PointLight(0xd4af37, 1.2, 14);
     rimPoint.position.set(0, 4, -4);
     this.scene.add(rimPoint);
     this.lights.rimPoint = rimPoint;
@@ -125,18 +160,20 @@ export class Scene3D {
   buildLuxuryTable() {
     this.tableGroup = new THREE.Group();
 
-    // 1. Felt Texture Asset
-    const feltTexture = this.textureLoader.load('assets/table/felt_emerald.svg');
+    // 1. HD Velvet Felt Texture Asset
+    const feltTexture = this.textureLoader.load('assets/table/felt_emerald.jpg');
     feltTexture.minFilter = THREE.LinearFilter;
     feltTexture.magFilter = THREE.LinearFilter;
+    feltTexture.generateMipmaps = true;
 
     // Felt Surface
     const feltRadius = 3.6;
     const feltGeo = new THREE.CylinderGeometry(feltRadius, feltRadius, 0.08, 64);
     this.feltMat = new THREE.MeshStandardMaterial({
       map: feltTexture,
-      roughness: 0.7,
-      metalness: 0.1
+      roughness: 0.75,
+      metalness: 0.05,
+      envMapIntensity: 0.4
     });
     this.feltMesh = new THREE.Mesh(feltGeo, this.feltMat);
     this.feltMesh.position.y = 0;
@@ -146,21 +183,29 @@ export class Scene3D {
     // 2. Golden Brass Lip Ring
     const brassGeo = new THREE.TorusGeometry(feltRadius + 0.02, 0.035, 16, 64);
     const brassMat = new THREE.MeshStandardMaterial({
-      color: 0xe6ca65,
+      color: 0xf59e0b,
       metalness: 0.92,
-      roughness: 0.18
+      roughness: 0.15,
+      envMapIntensity: 2.0
     });
     const brassMesh = new THREE.Mesh(brassGeo, brassMat);
     brassMesh.rotation.x = Math.PI / 2;
     brassMesh.position.y = 0.04;
     this.tableGroup.add(brassMesh);
 
-    // 3. Dark Leather Padded Armrest Ring
+    // 3. HD Polished Mahogany Wood Texture
+    const mahoganyTexture = this.textureLoader.load('assets/table/mahogany_rim.jpg');
+    mahoganyTexture.wrapS = THREE.RepeatWrapping;
+    mahoganyTexture.wrapT = THREE.RepeatWrapping;
+    mahoganyTexture.repeat.set(3, 1);
+
+    // Dark Leather Padded Armrest Ring
     const leatherGeo = new THREE.TorusGeometry(feltRadius + 0.28, 0.26, 24, 64);
     const leatherMat = new THREE.MeshStandardMaterial({
-      color: 0x140e0b,
+      color: 0x18100c,
       roughness: 0.4,
-      metalness: 0.05
+      metalness: 0.1,
+      envMapIntensity: 0.8
     });
     const leatherMesh = new THREE.Mesh(leatherGeo, leatherMat);
     leatherMesh.rotation.x = Math.PI / 2;
@@ -169,13 +214,15 @@ export class Scene3D {
     leatherMesh.receiveShadow = true;
     this.tableGroup.add(leatherMesh);
 
-    // 4. Polished Mahogany Outer Base (Octagon)
+    // 4. Polished Mahogany Outer Octagonal Base
     const woodRadius = feltRadius + 0.55;
-    const woodGeo = new THREE.CylinderGeometry(woodRadius, woodRadius + 0.3, 0.55, 8);
+    const woodGeo = new THREE.CylinderGeometry(woodRadius, woodRadius + 0.35, 0.55, 8);
     const woodMat = new THREE.MeshStandardMaterial({
-      color: 0x24120a,
-      roughness: 0.28,
-      metalness: 0.12
+      map: mahoganyTexture,
+      color: 0x451a03,
+      roughness: 0.22,
+      metalness: 0.18,
+      envMapIntensity: 1.6
     });
     const woodMesh = new THREE.Mesh(woodGeo, woodMat);
     woodMesh.position.y = -0.32;
@@ -183,7 +230,19 @@ export class Scene3D {
     woodMesh.receiveShadow = true;
     this.tableGroup.add(woodMesh);
 
-    // 5. Outer Brass Trim Ring
+    // 5. 8 Golden Baroque Corner Ornaments on the Octagon
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI / 4) + (Math.PI / 8);
+      const cornerX = Math.cos(angle) * (woodRadius + 0.12);
+      const cornerZ = Math.sin(angle) * (woodRadius + 0.12);
+      
+      const cornerGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.04, 16);
+      const cornerMesh = new THREE.Mesh(cornerGeo, brassMat);
+      cornerMesh.position.set(cornerX, 0.03, cornerZ);
+      this.tableGroup.add(cornerMesh);
+    }
+
+    // 6. Outer Golden Brass Trim Ring
     const outerBrassGeo = new THREE.TorusGeometry(woodRadius + 0.05, 0.025, 16, 64);
     const outerBrass = new THREE.Mesh(outerBrassGeo, brassMat);
     outerBrass.rotation.x = Math.PI / 2;

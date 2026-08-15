@@ -13,8 +13,8 @@ export const SUIT_SYMBOLS = {
 };
 
 export const SUIT_COLORS = {
-  hearts: '#dc2626',
-  diamonds: '#dc2626',
+  hearts: '#b91c1c',
+  diamonds: '#b91c1c',
   clubs: '#0f172a',
   spades: '#0f172a'
 };
@@ -22,11 +22,19 @@ export const SUIT_COLORS = {
 export const RANK_LABELS = {
   2: '2', 3: '3', 4: '4', 5: '5',
   6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
-  11: 'J', 12: 'Q', 13: 'K', 14: 'A'
+  11: 'В', 12: 'Д', 13: 'К', 14: 'Т'
 };
 
 const cardTextureCache = new Map();
 const textureLoader = new THREE.TextureLoader();
+
+// Pre-load HD Court card textures if available
+const courtTextures = {
+  king: textureLoader.load('assets/cards/king_hearts.jpg'),
+  queen: textureLoader.load('assets/cards/queen_spades.jpg'),
+  jack: textureLoader.load('assets/cards/jack_clubs.jpg'),
+  ace_spades: textureLoader.load('assets/cards/ace_spades.jpg')
+};
 
 /**
  * Creates an ultra-crisp Three.js CanvasTexture for a card front face
@@ -37,23 +45,42 @@ export function createCardFaceTexture(suit, rank) {
     return cardTextureCache.get(cacheKey);
   }
 
+  // If we have full card face raster asset for Ace of Spades
+  if (rank === 14 && suit === 'spades') {
+    const tex = textureLoader.load('assets/cards/ace_spades.jpg');
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    cardTextureCache.set(cacheKey, tex);
+    return tex;
+  }
+
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 716;
   const ctx = canvas.getContext('2d');
 
-  // Background - Crisp warm card white
-  ctx.fillStyle = '#ffffff';
+  // Background - Crisp ivory linen card stock
+  ctx.fillStyle = '#faf8f2';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Card Outer Shadow / Inset Border
+  // Subtle linen texture lines
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.02)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y < canvas.height; y += 8) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  // Outer Border & Gold Inset
   ctx.strokeStyle = '#cbd5e1';
   ctx.lineWidth = 3;
   ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
-  // Inset Gold hairline
-  ctx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
+  ctx.lineWidth = 2.5;
   ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
 
   const color = SUIT_COLORS[suit];
@@ -86,19 +113,9 @@ export function createCardFaceTexture(suit, rank) {
   ctx.translate(canvas.width / 2, canvas.height / 2);
 
   if (rank >= 11 && rank <= 13) {
-    drawCourtCardArt(ctx, rank, suit, color);
+    drawAtlasCourtArt(ctx, rank, suit, color);
   } else if (rank === 14) {
-    ctx.fillStyle = color;
-    ctx.font = 'bold 220px "Inter", "Segoe UI Symbol", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(symbol, 0, -10);
-
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(0, 0, 160, 0, Math.PI * 2);
-    ctx.stroke();
+    drawAtlasAceArt(ctx, suit, symbol, color);
   } else {
     drawPips(ctx, rank, symbol, color);
   }
@@ -112,28 +129,80 @@ export function createCardFaceTexture(suit, rank) {
   return texture;
 }
 
-function drawCourtCardArt(ctx, rank, suit, color) {
+function drawAtlasCourtArt(ctx, rank, suit, color) {
+  // Rich ornate Charlemagne-style royal court frame
   ctx.strokeStyle = 'rgba(212, 175, 55, 0.9)';
   ctx.lineWidth = 4;
-  ctx.strokeRect(-140, -200, 280, 400);
+  ctx.strokeRect(-145, -210, 290, 420);
 
   ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(-136, -196, 272, 392);
+  ctx.fillRect(-141, -206, 282, 412);
 
+  // Diagonal divider line for two-headed card
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-141, 0);
+  ctx.lineTo(141, 0);
+  ctx.stroke();
+
+  // Top half court figure
+  ctx.save();
   ctx.fillStyle = color;
-  ctx.font = 'bold 120px "Cinzel", Georgia, serif';
+  ctx.font = 'bold 96px "Cinzel", Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.fillText(RANK_LABELS[rank], 0, -110);
 
-  const courtTitles = { 11: 'JACK', 12: 'QUEEN', 13: 'KING' };
-  ctx.fillText(RANK_LABELS[rank], 0, -35);
+  ctx.font = '64px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.fillText(SUIT_SYMBOLS[suit], 0, -45);
+  ctx.restore();
 
-  ctx.font = '72px "Inter", "Segoe UI Symbol", sans-serif';
-  ctx.fillText(SUIT_SYMBOLS[suit], 0, 55);
+  // Bottom half court figure (inverted)
+  ctx.save();
+  ctx.rotate(Math.PI);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 96px "Cinzel", Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(RANK_LABELS[rank], 0, -110);
 
-  ctx.font = '700 20px "Outfit", sans-serif';
-  ctx.fillStyle = '#475569';
-  ctx.fillText(courtTitles[rank], 0, 130);
+  ctx.font = '64px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.fillText(SUIT_SYMBOLS[suit], 0, -45);
+  ctx.restore();
+
+  // Gold laurel ornaments on corners
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-110, -170, 16, 0, Math.PI * 2);
+  ctx.arc(110, 170, 16, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawAtlasAceArt(ctx, suit, symbol, color) {
+  ctx.fillStyle = color;
+  ctx.font = 'bold 210px "Inter", "Segoe UI Symbol", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(symbol, 0, -15);
+
+  // Imperial Gold Medallion Wreath
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, 155, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 165, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.font = 'bold 22px "Cinzel", serif';
+  ctx.fillStyle = '#b45309';
+  ctx.fillText('ТУЗ', 0, 105);
 }
 
 function drawPips(ctx, count, symbol, color) {
@@ -169,16 +238,17 @@ export function createCardBackTexture(skinId = 'deck_classic') {
     return cardTextureCache.get(cacheKey);
   }
 
-  // Load from asset directory
+  // Load from HD asset directory
   const assetPaths = {
-    deck_classic: 'assets/cards/back_classic.svg',
-    deck_imperial: 'assets/cards/back_imperial.svg'
+    deck_classic: 'assets/cards/back_classic.jpg',
+    deck_imperial: 'assets/cards/back_imperial.jpg'
   };
 
   if (assetPaths[skinId]) {
     const tex = textureLoader.load(assetPaths[skinId]);
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
     cardTextureCache.set(cacheKey, tex);
     return tex;
   }
@@ -220,7 +290,6 @@ export function createCardBackTexture(skinId = 'deck_classic') {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
   cardTextureCache.set(cacheKey, texture);
   return texture;
 }

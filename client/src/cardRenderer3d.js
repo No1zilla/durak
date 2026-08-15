@@ -89,11 +89,11 @@ export class CardRenderer3D {
 
     // Mobile / Portrait responsive spread and base positioning
     const spreadScale = isPortrait ? Math.min(1.0, aspect / 0.7) : 1.0;
-    const maxSpread = Math.min(0.38 * spreadScale, total * 0.05 * spreadScale);
-    const arcRadius = isPortrait ? 2.8 : 3.6;
-    const baseY = isPortrait ? 2.15 : 1.85;
-    const baseZ = isPortrait ? 3.10 : 3.35;
-    const rotX = isPortrait ? -0.50 : -0.65;
+    const maxSpread = Math.min(0.40 * spreadScale, total * 0.055 * spreadScale);
+    const arcRadius = isPortrait ? 2.8 : 3.4;
+    const baseY = isPortrait ? 1.80 : 1.75;
+    const baseZ = isPortrait ? 3.40 : 3.45;
+    const rotX = isPortrait ? -0.56 : -0.70;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
