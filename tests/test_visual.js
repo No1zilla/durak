@@ -148,11 +148,15 @@ async function run() {
       const desktopLayout = await page.evaluate(() => {
         const hand = [...window.app.cardRenderer.cardMeshes.values()].filter(mesh => mesh.userData.isHand);
         const projected = hand.flatMap(mesh => {
-          const box = new THREE.Box3().setFromObject(mesh);
+          mesh.updateMatrixWorld(true);
+          mesh.geometry.computeBoundingBox();
+          const box = mesh.geometry.boundingBox;
           const corners = [];
           for (const x of [box.min.x, box.max.x]) {
             for (const y of [box.min.y, box.max.y]) {
-              for (const z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, z));
+              for (const z of [box.min.z, box.max.z]) {
+                corners.push(new THREE.Vector3(x, y, z).applyMatrix4(mesh.matrixWorld));
+              }
             }
           }
           return corners.map(point => {
