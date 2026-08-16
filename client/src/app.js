@@ -275,7 +275,7 @@ class DurakApp {
 
       if (screenPos.visible) {
         badge.style.display = 'flex';
-        badge.style.left = `${Math.min(window.innerWidth - 58, Math.max(58, screenPos.x))}px`;
+        badge.style.left = `${Math.min(window.innerWidth - 82, Math.max(82, screenPos.x))}px`;
         badge.style.top = `${Math.min(window.innerHeight - 170, Math.max(96, screenPos.y))}px`;
       } else {
         badge.style.display = 'none';

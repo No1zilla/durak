@@ -84,8 +84,8 @@ export class Scene3D {
     const bgPlaneGeo = new THREE.PlaneGeometry(18, 14);
     const bgTexture = this.textureLoader.load('assets/table/casino_bg_portrait.jpg');
     bgTexture.colorSpace = THREE.SRGBColorSpace;
-    bgTexture.offset.y = 0.42;
-    bgTexture.repeat.y = 0.58;
+    bgTexture.offset.y = 0.64;
+    bgTexture.repeat.y = 0.36;
 
     const bgPlaneMat = new THREE.MeshBasicMaterial({
       map: bgTexture,
