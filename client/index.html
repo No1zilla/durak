@@ -24,6 +24,11 @@
 <body>
   <!-- 3D Canvas Container -->
   <div id="canvas-container"></div>
+  <div id="webgl-fallback" aria-live="polite">
+    <div class="fallback-notice">Режим совместимости</div>
+    <div id="fallback-table-cards"></div>
+    <div id="fallback-hand"></div>
+  </div>
 
   <!-- Ambient Vignette Overlay -->
   <div class="vignette-overlay"></div>
@@ -49,11 +54,15 @@
 
       <div class="header-actions">
         <button id="btn-daily" class="btn-icon" title="Ежедневный бонус">
-          <span>🎁</span>
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 10h16v11H4zM2.5 6.5h19V10h-19zM12 6.5V21M12 6.5c-3.5 0-5.5-1.2-5.5-3 0-1.2.9-2 2.1-2 2.1 0 3.4 2.7 3.4 5zM12 6.5c3.5 0 5.5-1.2 5.5-3 0-1.2-.9-2-2.1-2-2.1 0-3.4 2.7-3.4 5z"/>
+          </svg>
           <span class="badge-dot"></span>
         </button>
         <button id="btn-shop" class="btn-icon" title="Магазин скинов">
-          <span>🛒</span>
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L20.5 8H6M10 20h.01M18 20h.01"/>
+          </svg>
         </button>
         <button id="btn-sound" class="btn-icon" title="Звук">
           <span id="sound-icon">🔊</span>
@@ -74,7 +83,9 @@
         <!-- Quick Play Buttons -->
         <div class="quick-actions-row">
           <button id="btn-quick-podkidnoy" class="btn-hero primary">
-            <span class="btn-icon-hero">⚡</span>
+            <svg class="ui-icon btn-icon-hero" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M13.5 2 5 13h6l-.5 9L19 10h-6z"/>
+            </svg>
             <div class="btn-text-block">
               <strong>Подкидной</strong>
               <small>Быстрая игра</small>
@@ -82,7 +93,9 @@
           </button>
 
           <button id="btn-quick-perevodnoy" class="btn-hero accent">
-            <span class="btn-icon-hero">🔄</span>
+            <svg class="ui-icon btn-icon-hero" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 7h-7a4 4 0 0 0-4 4v1M16 3l4 4-4 4M4 17h7a4 4 0 0 0 4-4v-1M8 21l-4-4 4-4"/>
+            </svg>
             <div class="btn-text-block">
               <strong>Переводной</strong>
               <small>С переводом хода</small>
@@ -125,7 +138,12 @@
 
         <div class="mode-badge" id="hud-game-mode">Подкидной</div>
 
-        <button id="btn-add-bot" class="btn-icon-small" title="Добавить бота" style="font-size:12px; width:auto; padding:0 10px;">🤖 +Бот</button>
+        <button id="btn-add-bot" class="btn-icon-small" title="Добавить бота" style="font-size:12px; width:auto; padding:0 10px;">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v3M8 3h8M5 9h14v10H5zM2 12h3M19 12h3M9 13h.01M15 13h.01M9 17h6"/>
+          </svg>
+          <span>+Бот</span>
+        </button>
         <button id="btn-throw-menu" class="btn-icon-small" title="Бросить предмет">🍅</button>
       </div>
 

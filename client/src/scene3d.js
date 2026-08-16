@@ -58,6 +58,7 @@ export class Scene3D {
         this.container.appendChild(this.renderer.domElement);
       }
     }
+    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.renderer);
 
     // 4. Build VIP Casino Room Environment with Panorama Asset
     this.buildVIPEnvironment();
@@ -83,6 +84,8 @@ export class Scene3D {
     const bgPlaneGeo = new THREE.PlaneGeometry(18, 14);
     const bgTexture = this.textureLoader.load('assets/table/casino_bg_portrait.jpg');
     bgTexture.colorSpace = THREE.SRGBColorSpace;
+    bgTexture.offset.y = 0.42;
+    bgTexture.repeat.y = 0.58;
 
     const bgPlaneMat = new THREE.MeshBasicMaterial({
       map: bgTexture,
@@ -264,7 +267,7 @@ export class Scene3D {
   setTableColor(hexColor) {
     this.tableColor = hexColor;
     if (this.feltMat) {
-      this.feltMat.color.set(hexColor);
+      this.feltMat.color.set(hexColor === '#0b2b1b' ? '#ffffff' : hexColor);
     }
   }
 

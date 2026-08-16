@@ -13,7 +13,7 @@ async function run() {
 
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=swiftshader'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     defaultViewport: { width: 414, height: 896, deviceScaleFactor: 2 } // iPhone XR
   });
 
@@ -43,6 +43,7 @@ async function run() {
       return canvas ? { w: canvas.width, h: canvas.height } : null;
     });
     console.log(`  Canvas: ${hasCanvas ? `${hasCanvas.w}x${hasCanvas.h}` : '❌ NOT FOUND'}`);
+    if (!hasCanvas) throw new Error('WebGL canvas not found');
 
     // Check for WebGL context
     const hasWebGL = await page.evaluate(() => {
@@ -108,6 +109,7 @@ async function run() {
       console.log(`  3D Scene children: ${sceneCheck.childCount || sceneCheck.error}`);
       console.log(`  Camera: ${sceneCheck.hasCamera ? '✅' : '❌'} pos=${JSON.stringify(sceneCheck.cameraPos)}`);
       console.log(`  Renderer: ${sceneCheck.hasRenderer ? '✅' : '❌'}`);
+      if (!sceneCheck.hasRenderer) throw new Error('WebGL renderer not available');
 
       // 6. Check card meshes
       const cardCheck = await page.evaluate(() => {
@@ -138,12 +140,14 @@ async function run() {
     if (errors.length > 0) {
       console.log(`\n  ⚠️ Console errors (${errors.length}):`);
       errors.forEach(e => console.log(`    • ${e}`));
+      throw new Error(`Browser reported ${errors.length} console error(s)`);
     } else {
       console.log('\n  ✅ No console errors!');
     }
 
   } catch (err) {
     console.error(`  ❌ Error: ${err.message}`);
+    process.exitCode = 1;
   } finally {
     await browser.close();
     console.log('\n📸 Done.\n');

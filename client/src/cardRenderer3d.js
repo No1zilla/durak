@@ -93,7 +93,7 @@ export class CardRenderer3D {
     const baseY = isPortrait ? 1.88 : 1.75;
     const baseZ = isPortrait ? 3.45 : 3.50;
     const rotX = isPortrait ? 0.78 : 0.74;
-    const cardScale = isPortrait ? 0.72 : 0.9;
+    const cardScale = isPortrait ? 0.78 : 0.9;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
@@ -145,6 +145,13 @@ export class CardRenderer3D {
    * Renders 3D Opponents' Card Backs around the table
    */
   renderOpponentsHands(players, localPlayerId) {
+    const signature = `${this.activeDeckSkin}|${players
+      .filter(player => player.id !== localPlayerId)
+      .map(player => `${player.id}:${player.cardsCount}`)
+      .join('|')}`;
+    if (signature === this._opponentsSignature) return;
+    this._opponentsSignature = signature;
+
     this.opponentCardMeshes.forEach(m => {
       if (m.geometry) m.geometry.dispose();
       if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
@@ -191,7 +198,21 @@ export class CardRenderer3D {
    * Renders Deck Stack and Perpendicular Trump Card
    */
   renderDeckAndTrump(remainingCount, trumpCard) {
-    if (!trumpCard) return;
+    if (!trumpCard) {
+      [...this.deckMeshes, this.trumpMesh].filter(Boolean).forEach(mesh => {
+        this.scene.remove(mesh);
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.filter(Boolean).forEach(material => material.dispose());
+      });
+      this.deckMeshes = [];
+      this.trumpMesh = null;
+      this._deckSignature = null;
+      return;
+    }
+    const signature = `${this.activeDeckSkin}|${remainingCount}|${trumpCard.id}`;
+    if (signature === this._deckSignature) return;
+    this._deckSignature = signature;
 
     // Trump Card (Horizontal, Face UP under deck)
     if (!this.trumpMesh) {
@@ -385,6 +406,8 @@ export class CardRenderer3D {
     this.tablePairMeshes = [];
     this.deckMeshes = [];
     this.opponentCardMeshes = [];
+    this._opponentsSignature = null;
+    this._deckSignature = null;
     this.trumpMesh = null;
     this.selectedCard = null;
     this.hoveredCard = null;
