@@ -4,6 +4,9 @@
 /* global THREE */
 
 export const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
+export const CARD_ASPECT = 5 / 7;
+export const CARD_TEXTURE_WIDTH = 500;
+export const CARD_TEXTURE_HEIGHT = 700;
 
 export const SUIT_SYMBOLS = {
   hearts: '♥',
@@ -38,8 +41,8 @@ export function createCardFaceTexture(suit, rank) {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 716;
+  canvas.width = CARD_TEXTURE_WIDTH;
+  canvas.height = CARD_TEXTURE_HEIGHT;
   const ctx = canvas.getContext('2d');
 
   // Background - Crisp ivory linen card stock
@@ -294,7 +297,7 @@ export function createCardBackTexture(skinId = 'deck_classic') {
   };
 
   if (assetPaths[skinId]) {
-    const tex = textureLoader.load(assetPaths[skinId]);
+    const tex = textureLoader.load(assetPaths[skinId], cropTextureToCard);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
@@ -305,8 +308,8 @@ export function createCardBackTexture(skinId = 'deck_classic') {
 
   // Fallback for gold / cyberpunk
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 716;
+  canvas.width = CARD_TEXTURE_WIDTH;
+  canvas.height = CARD_TEXTURE_HEIGHT;
   const ctx = canvas.getContext('2d');
 
   if (skinId === 'deck_gold') {
@@ -342,4 +345,16 @@ export function createCardBackTexture(skinId = 'deck_classic') {
   const texture = new THREE.CanvasTexture(canvas);
   cardTextureCache.set(cacheKey, texture);
   return texture;
+}
+
+function cropTextureToCard(texture) {
+  const sourceAspect = texture.image.width / texture.image.height;
+  if (sourceAspect < CARD_ASPECT) {
+    texture.repeat.y = sourceAspect / CARD_ASPECT;
+    texture.offset.y = (1 - texture.repeat.y) / 2;
+  } else if (sourceAspect > CARD_ASPECT) {
+    texture.repeat.x = CARD_ASPECT / sourceAspect;
+    texture.offset.x = (1 - texture.repeat.x) / 2;
+  }
+  texture.needsUpdate = true;
 }

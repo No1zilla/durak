@@ -118,7 +118,11 @@ async function run() {
           totalMeshes: window.app.cardRenderer.cardMeshes.size,
           handCards: window.app.cardRenderer.handCards.length,
           opponentMeshes: window.app.cardRenderer.opponentCardMeshes.length,
-          deckMeshes: window.app.cardRenderer.deckMeshes.length
+          deckMeshes: window.app.cardRenderer.deckMeshes.length,
+          cardAspect: (() => {
+            const mesh = window.app.cardRenderer.cardMeshes.values().next().value;
+            return mesh ? mesh.geometry.parameters.width / mesh.geometry.parameters.depth : null;
+          })()
         };
       });
 
@@ -126,6 +130,9 @@ async function run() {
       console.log(`  Hand cards: ${cardCheck.handCards ?? '?'}`);
       console.log(`  Opponent meshes: ${cardCheck.opponentMeshes ?? '?'}`);
       console.log(`  Deck meshes: ${cardCheck.deckMeshes ?? '?'}`);
+      if (cardCheck.cardAspect && Math.abs(cardCheck.cardAspect - (5 / 7)) > 0.001) {
+        throw new Error(`Wrong card aspect ratio: ${cardCheck.cardAspect}`);
+      }
 
       // Wait a bit more for any animations, take final screenshot
       await delay(2000);

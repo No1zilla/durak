@@ -3,7 +3,7 @@
  */
 /* global THREE, gsap */
 
-import { createCardFaceTexture, createCardBackTexture } from './cards.js';
+import { CARD_ASPECT, createCardFaceTexture, createCardBackTexture } from './cards.js';
 import { sounds } from './audio.js';
 
 export class CardRenderer3D {
@@ -33,8 +33,8 @@ export class CardRenderer3D {
   }
 
   createCardMesh(card, isFaceUp = true) {
-    const cardWidth = 0.76;
-    const cardHeight = 1.06;
+    const cardHeight = 1.05;
+    const cardWidth = cardHeight * CARD_ASPECT;
     const cardThickness = 0.008;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThickness, cardHeight);
