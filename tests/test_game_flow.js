@@ -66,20 +66,22 @@ async function runTests() {
 
     // ── TEST 2: Auth ──
     console.log('2️⃣  Authentication');
+    const authResult = waitFor('authSuccess');
+    const initialRooms = waitFor('roomList');
     socket.emit('auth', {
       id: 'test_player_001',
       name: 'Тест Игрок',
       avatar: 'https://example.com/avatar.jpg'
     });
 
-    const authData = await waitFor('authSuccess');
+    const authData = await authResult;
     assert(authData.player !== undefined, 'authSuccess received with player data');
     assert(authData.userEconomy !== undefined, 'authSuccess received with economy data');
     assert(authData.userEconomy.chips === 5000, `Starting chips: ${authData.userEconomy.chips} (expected 5000)`);
 
     // ── TEST 3: Room List ──
     console.log('3️⃣  Room List');
-    const roomList = await waitFor('roomList');
+    const roomList = await initialRooms;
     assert(Array.isArray(roomList), `Room list received (${roomList.length} rooms)`);
 
     // ── TEST 4 & 5: Quick Match & Initial Game State ──
