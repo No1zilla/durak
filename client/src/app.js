@@ -86,7 +86,8 @@ class DurakApp {
       this.socket.emit('auth', {
         id: this.player.id,
         name: this.player.name,
-        avatar: this.player.avatar
+        avatar: this.player.avatar,
+        launchParams: new URLSearchParams(window.location.search).has('sign') ? window.location.search : ''
       });
     });
 
@@ -680,10 +681,10 @@ class DurakApp {
           </button>
         `;
         card.querySelector('button').addEventListener('click', async () => {
-          await vk.openVKPay(pack.priceRub, pack.name);
-          this.userEconomy.chips += pack.chips;
-          this.updateHeaderProfile();
-          this.showToast(`Успешно начислено +${pack.chips} фишек!`);
+          const payment = await vk.openVKPay(pack.priceRub, pack.name);
+          this.showToast(payment
+            ? 'Платёж отправлен на серверную проверку'
+            : 'VK Pay недоступен');
         });
         container.appendChild(card);
       });

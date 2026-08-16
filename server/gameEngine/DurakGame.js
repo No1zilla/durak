@@ -51,6 +51,7 @@ class DurakGame {
   }
 
   addPlayer(player) {
+    if (this.state !== GAME_STATES.WAITING) return false;
     if (this.players.length >= this.maxPlayers) return false;
     if (this.players.some(p => p.id === player.id)) return false;
 
@@ -86,6 +87,7 @@ class DurakGame {
   }
 
   start() {
+    if (this.state !== GAME_STATES.WAITING) return false;
     if (this.players.length < 2) return false;
 
     this.state = GAME_STATES.DEALING;
@@ -158,12 +160,18 @@ class DurakGame {
    * Attack Action: Player places a card on the table
    */
   attack(playerId, cardId) {
+    if (this.state !== GAME_STATES.ATTACKING) {
+      return { success: false, error: 'Сейчас нельзя атаковать' };
+    }
     const player = this.players.find(p => p.id === playerId);
     if (!player || player.outRank !== null) return { success: false, error: 'Игрок не активен' };
 
     const defender = this.currentDefender;
     if (!defender) return { success: false, error: 'Защитник не найден' };
     if (player.id === defender.id) return { success: false, error: 'Защитник не может атаковать сам себя' };
+    if (this.tablePairs.length === 0 && player.id !== this.currentAttacker.id) {
+      return { success: false, error: 'Первый ход делает атакующий' };
+    }
 
     // Maximum cards in round check
     const maxAllowedCards = this.isFirstBita ? 5 : 6;
@@ -214,6 +222,9 @@ class DurakGame {
    * Transfer Action (Перевод): Defender transfers attack to next player by matching rank
    */
   transfer(playerId, cardId) {
+    if (this.state !== GAME_STATES.DEFENDING) {
+      return { success: false, error: 'Сейчас нельзя переводить' };
+    }
     if (this.mode !== GAME_MODES.PEREVODNOY) {
       return { success: false, error: 'Стол не в режиме Переводного' };
     }
@@ -270,6 +281,9 @@ class DurakGame {
    * Defend Action: Defender beats a specific attacking card
    */
   defend(playerId, attackCardId, defendCardId) {
+    if (this.state !== GAME_STATES.DEFENDING) {
+      return { success: false, error: 'Сейчас нельзя отбиваться' };
+    }
     const defender = this.currentDefender;
     if (!defender || defender.id !== playerId) {
       return { success: false, error: 'Только защитник может отбивать' };
@@ -319,6 +333,9 @@ class DurakGame {
    * Pass Action (Бита / Готово): Attacker has no more cards to toss
    */
   pass(playerId) {
+    if (this.state !== GAME_STATES.ATTACKING || this.tablePairs.length === 0) {
+      return { success: false, error: 'Сейчас нельзя пасовать' };
+    }
     const player = this.players.find(p => p.id === playerId);
     if (!player || player.outRank !== null) return { success: false };
 
@@ -343,6 +360,9 @@ class DurakGame {
    * Take Action (Взять): Defender yields and collects all cards from the table
    */
   take(playerId) {
+    if (this.state !== GAME_STATES.DEFENDING) {
+      return { success: false, error: 'Сейчас нельзя забирать карты' };
+    }
     const defender = this.currentDefender;
     if (!defender || defender.id !== playerId) {
       return { success: false, error: 'Только защитник может забрать карты' };

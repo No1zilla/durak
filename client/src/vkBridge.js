@@ -122,8 +122,7 @@ class VKService {
       }, 60000);
       if (res) return res;
     }
-    alert(`[VK Pay Тест]: Успешная оплата ${amountRub} ₽ за "${description}"`);
-    return { status: true };
+    return null;
   }
 
   // Rewarded Video Ad (Bonus Chips)

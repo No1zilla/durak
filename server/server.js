@@ -5,26 +5,20 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const cors = require('cors');
 const { Server } = require('socket.io');
 
 const { RoomManager } = require('./gameEngine/RoomManager');
 const { EconomyService, SKINS_CATALOG } = require('./services/economyService');
+const { verifyVkLaunchParams, cleanText, cleanImageUrl } = require('./security');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
 
 // Middlewares
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client')));
 
@@ -45,30 +39,57 @@ app.get('/api/shop/catalog', (req, res) => {
   res.json(SKINS_CATALOG);
 });
 
-app.get('/api/user/:vkId', (req, res) => {
-  const user = economyService.getUser(req.params.vkId);
-  res.json(user);
-});
-
 app.post('/api/vkpay/order', (req, res) => {
-  const { vkId, itemType, amount, orderId } = req.body;
-  const result = economyService.addVKPayPurchase(vkId, itemType, amount);
-  res.json({ success: true, user: result.user });
+  res.status(410).json({ success: false, error: 'Покупка ожидает серверного подтверждения VK Pay' });
 });
 
 // Socket.io Real-time Event Handlers
 io.on('connection', (socket) => {
   let currentPlayer = null;
+  let actionWindowStart = Date.now();
+  let actionCount = 0;
+
+  const reject = (message) => {
+    socket.emit('errorMsg', message);
+    return null;
+  };
+
+  const roomForAction = (roomId, { host = false, waiting = false } = {}) => {
+    if (!currentPlayer) return reject('Требуется авторизация');
+    const room = roomManager.getRoom(roomId);
+    if (!room) return reject('Стол не найден');
+    if (roomManager.playerRooms.get(currentPlayer.id) !== roomId) return reject('Вы не участник этого стола');
+    if (host && room.hostId !== currentPlayer.id) return reject('Действие доступно только владельцу стола');
+    if (waiting && room.game.state !== 'WAITING') return reject('Игра уже началась');
+
+    const now = Date.now();
+    if (now - actionWindowStart >= 1000) {
+      actionWindowStart = now;
+      actionCount = 0;
+    }
+    if (++actionCount > 30) return reject('Слишком много действий');
+    return room;
+  };
 
   socket.on('auth', (playerData) => {
+    if (currentPlayer) return reject('Сессия уже авторизована');
+    const signedIdentity = verifyVkLaunchParams(playerData?.launchParams, process.env.VK_CLIENT_SECRET);
+    if (playerData?.launchParams && !signedIdentity) {
+      reject('Неверная подпись VK');
+      return;
+    }
+
+    const developmentId = process.env.NODE_ENV !== 'production' && playerData?.id;
+    const playerId = signedIdentity?.id || developmentId || `guest_${socket.id}`;
+    if (roomManager.playerRooms.has(playerId)) return reject('Игрок уже находится за столом');
     currentPlayer = {
-      id: playerData.id || 'vk_' + socket.id.substring(0, 6),
+      id: playerId,
       socketId: socket.id,
-      name: playerData.name || 'Гость',
-      avatar: playerData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-      chips: playerData.chips || 5000,
-      activeTable: playerData.activeTable || 'table_emerald',
-      activeDeck: playerData.activeDeck || 'deck_classic'
+      name: cleanText(playerData?.name, 'Гость'),
+      avatar: cleanImageUrl(playerData?.avatar, ''),
+      chips: 5000,
+      activeTable: 'table_emerald',
+      activeDeck: 'deck_classic'
     };
 
     socket.emit('authSuccess', {
@@ -84,17 +105,25 @@ io.on('connection', (socket) => {
     socket.emit('roomList', roomManager.getRoomList());
   });
 
-  socket.on('createRoom', (settings) => {
+  socket.on('createRoom', (settings = {}) => {
     if (!currentPlayer) return;
-    const room = roomManager.createRoom(settings, currentPlayer);
+    if (roomManager.playerRooms.has(currentPlayer.id)) return reject('Сначала выйдите из текущего стола');
+    const room = roomManager.createRoom({
+      mode: settings?.mode === 'perevodnoy' ? 'perevodnoy' : 'podkidnoy',
+      deckSize: [24, 36, 52].includes(Number(settings?.deckSize)) ? Number(settings.deckSize) : 36,
+      maxPlayers: Math.min(6, Math.max(2, Number(settings?.maxPlayers) || 4)),
+      bet: [100, 500, 1000, 5000].includes(Number(settings?.bet)) ? Number(settings.bet) : 100,
+      name: cleanText(settings?.name, '', 50)
+    }, currentPlayer);
     socket.join(room.id);
     socket.emit('joinedRoom', { roomId: room.id, isHost: true });
     roomManager.broadcastState(room.id);
     io.emit('roomList', roomManager.getRoomList());
   });
 
-  socket.on('joinRoom', ({ roomId, password }) => {
+  socket.on('joinRoom', ({ roomId, password } = {}) => {
     if (!currentPlayer) return;
+    if (roomManager.playerRooms.has(currentPlayer.id)) return reject('Сначала выйдите из текущего стола');
     const res = roomManager.joinRoom(roomId, currentPlayer, password);
     if (res.success) {
       socket.join(roomId);
@@ -106,9 +135,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('quickMatch', ({ mode }) => {
+  socket.on('quickMatch', ({ mode } = {}) => {
     if (!currentPlayer) return;
-    const res = roomManager.quickMatch(currentPlayer, mode);
+    if (roomManager.playerRooms.has(currentPlayer.id)) return reject('Сначала выйдите из текущего стола');
+    const res = roomManager.quickMatch(currentPlayer, mode === 'perevodnoy' ? 'perevodnoy' : 'podkidnoy');
     if (res.success) {
       socket.join(res.room.id);
       socket.emit('joinedRoom', { roomId: res.room.id, isHost: res.room.hostId === currentPlayer.id });
@@ -128,28 +158,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('addBot', ({ roomId }) => {
+  socket.on('addBot', ({ roomId } = {}) => {
+    const room = roomForAction(roomId, { host: true, waiting: true });
+    if (!room) return;
     const success = roomManager.addBot(roomId);
     if (success) {
       io.emit('roomList', roomManager.getRoomList());
     }
   });
 
-  socket.on('startGame', ({ roomId }) => {
-    const room = roomManager.getRoom(roomId);
+  socket.on('startGame', ({ roomId } = {}) => {
+    const room = roomForAction(roomId, { host: true, waiting: true });
     if (!room) return;
-    if (room.hostId === currentPlayer.id || room.game.players.length >= 2) {
-      room.game.start();
-      roomManager.broadcastState(roomId);
-      io.emit('roomList', roomManager.getRoomList());
-      roomManager.handleBotTurns(roomId);
-    }
+    if (room.game.players.length < 2) return reject('Нужно минимум два игрока');
+    room.game.start();
+    roomManager.broadcastState(roomId);
+    io.emit('roomList', roomManager.getRoomList());
+    roomManager.handleBotTurns(roomId);
   });
 
   // Game Action Handlers
-  socket.on('attack', ({ roomId, cardId }) => {
-    if (!currentPlayer) return;
-    const room = roomManager.getRoom(roomId);
+  socket.on('attack', ({ roomId, cardId } = {}) => {
+    const room = roomForAction(roomId);
     if (!room) return;
 
     const res = room.game.attack(currentPlayer.id, cardId);
@@ -161,9 +191,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('transfer', ({ roomId, cardId }) => {
-    if (!currentPlayer) return;
-    const room = roomManager.getRoom(roomId);
+  socket.on('transfer', ({ roomId, cardId } = {}) => {
+    const room = roomForAction(roomId);
     if (!room) return;
 
     const res = room.game.transfer(currentPlayer.id, cardId);
@@ -175,9 +204,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('defend', ({ roomId, attackCardId, defendCardId }) => {
-    if (!currentPlayer) return;
-    const room = roomManager.getRoom(roomId);
+  socket.on('defend', ({ roomId, attackCardId, defendCardId } = {}) => {
+    const room = roomForAction(roomId);
     if (!room) return;
 
     const res = room.game.defend(currentPlayer.id, attackCardId, defendCardId);
@@ -189,9 +217,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('pass', ({ roomId }) => {
-    if (!currentPlayer) return;
-    const room = roomManager.getRoom(roomId);
+  socket.on('pass', ({ roomId } = {}) => {
+    const room = roomForAction(roomId);
     if (!room) return;
 
     const res = room.game.pass(currentPlayer.id);
@@ -201,9 +228,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('take', ({ roomId }) => {
-    if (!currentPlayer) return;
-    const room = roomManager.getRoom(roomId);
+  socket.on('take', ({ roomId } = {}) => {
+    const room = roomForAction(roomId);
     if (!room) return;
 
     const res = room.game.take(currentPlayer.id);
@@ -214,21 +240,25 @@ io.on('connection', (socket) => {
   });
 
   // Interactive 3D Item Throwing (Tomato, Champagne, Coin)
-  socket.on('throwItem', ({ roomId, targetPlayerId, itemType }) => {
-    if (!currentPlayer) return;
+  socket.on('throwItem', ({ roomId, targetPlayerId, itemType } = {}) => {
+    const room = roomForAction(roomId);
+    if (!room || !room.game.players.some(p => p.id === targetPlayerId)) return;
+    const safeItem = ['tomato', 'champagne', 'coin', 'fire', 'heart'].includes(itemType) ? itemType : 'tomato';
     io.to(roomId).emit('itemThrown', {
       fromPlayerId: currentPlayer.id,
       targetPlayerId,
-      itemType: itemType || 'tomato'
+      itemType: safeItem
     });
   });
 
   // 3D Emoji Reaction
-  socket.on('chatReaction', ({ roomId, emoji }) => {
-    if (!currentPlayer) return;
+  socket.on('chatReaction', ({ roomId, emoji } = {}) => {
+    if (!roomForAction(roomId)) return;
+    const safeEmoji = ['👍', '👏', '😂', '😮', '😢', '🔥'].includes(emoji) ? emoji : null;
+    if (!safeEmoji) return;
     io.to(roomId).emit('playerReaction', {
       playerId: currentPlayer.id,
-      emoji
+      emoji: safeEmoji
     });
   });
 
@@ -239,13 +269,13 @@ io.on('connection', (socket) => {
     socket.emit('dailyBonusResult', res);
   });
 
-  socket.on('buySkin', ({ category, skinId, useCurrency }) => {
+  socket.on('buySkin', ({ category, skinId, useCurrency } = {}) => {
     if (!currentPlayer) return;
     const res = economyService.buySkin(currentPlayer.id, category, skinId, useCurrency);
     socket.emit('buySkinResult', res);
   });
 
-  socket.on('equipSkin', ({ category, skinId }) => {
+  socket.on('equipSkin', ({ category, skinId } = {}) => {
     if (!currentPlayer) return;
     const res = economyService.equipSkin(currentPlayer.id, category, skinId);
     socket.emit('equipSkinResult', res);
