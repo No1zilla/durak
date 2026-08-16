@@ -39,6 +39,7 @@ class DurakApp {
     // 2. Initialize 3D Engine
     const container = document.getElementById('canvas-container');
     this.scene3D = new Scene3D(container);
+    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
     this.cardRenderer = new CardRenderer3D(this.scene3D);
     this.throwEngine = new ThrowItemsEngine(this.scene3D);
 

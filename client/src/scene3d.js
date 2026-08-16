@@ -58,8 +58,6 @@ export class Scene3D {
         this.container.appendChild(this.renderer.domElement);
       }
     }
-    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.renderer);
-
     // 4. Build VIP Casino Room Environment with Panorama Asset
     this.buildVIPEnvironment();
 
