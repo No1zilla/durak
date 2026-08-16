@@ -94,7 +94,7 @@ export class CardRenderer3D {
       ? Math.min(0.72, total * 0.13)
       : Math.min(isCompactLandscape ? 0.66 : 0.5, total * (isCompactLandscape ? 0.11 : 0.08));
     const arcRadius = isPortrait ? 2.6 : 3.2;
-    const baseY = isPortrait ? 1.88 : isCompactLandscape ? 1.2 : 1.55;
+    const baseY = isPortrait ? 1.88 : isCompactLandscape ? 1.75 : 1.55;
     const baseZ = isPortrait ? 3.45 : 3.50;
     const rotX = isPortrait ? 0.78 : 0.74;
     const cardScale = isPortrait ? 0.78 : isCompactLandscape ? 0.5 : 0.68;
