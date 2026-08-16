@@ -88,12 +88,12 @@ export class CardRenderer3D {
     const isPortrait = aspect < 1.0;
 
     // Mobile / Portrait responsive spread and base positioning
-    const spreadScale = isPortrait ? Math.min(1.0, aspect / 0.7) : 1.0;
-    const maxSpread = Math.min(0.42 * spreadScale, total * 0.065 * spreadScale);
+    const maxSpread = isPortrait ? Math.min(0.72, total * 0.13) : Math.min(0.42, total * 0.065);
     const arcRadius = isPortrait ? 2.6 : 3.2;
     const baseY = isPortrait ? 1.88 : 1.75;
     const baseZ = isPortrait ? 3.45 : 3.50;
     const rotX = isPortrait ? 0.78 : 0.74;
+    const cardScale = isPortrait ? 0.72 : 0.9;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
@@ -106,6 +106,7 @@ export class CardRenderer3D {
         this.scene.add(mesh);
         this.cardMeshes.set(card.id, mesh);
       }
+      mesh.scale.setScalar(cardScale);
 
       const progress = total === 1 ? 0.5 : i / (total - 1);
       const angle = (progress - 0.5) * maxSpread;
@@ -360,5 +361,32 @@ export class CardRenderer3D {
       duration: 0.15,
       ease: 'power1.out'
     });
+  }
+
+  clear() {
+    const meshes = new Set([
+      ...this.cardMeshes.values(),
+      ...this.opponentCardMeshes,
+      ...this.deckMeshes,
+      this.trumpMesh
+    ].filter(Boolean));
+
+    meshes.forEach(mesh => {
+      gsap.killTweensOf(mesh.position);
+      gsap.killTweensOf(mesh.rotation);
+      this.scene.remove(mesh);
+      mesh.geometry?.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.filter(Boolean).forEach(material => material.dispose());
+    });
+
+    this.cardMeshes.clear();
+    this.handCards = [];
+    this.tablePairMeshes = [];
+    this.deckMeshes = [];
+    this.opponentCardMeshes = [];
+    this.trumpMesh = null;
+    this.selectedCard = null;
+    this.hoveredCard = null;
   }
 }

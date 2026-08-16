@@ -172,6 +172,7 @@ export class Scene3D {
       metalness: 0.05,
       envMapIntensity: 0.6
     });
+    this.feltMat = topMat;
 
     this.tableMesh = new THREE.Mesh(tableGeo, [sideMat, topMat, sideMat]);
     this.tableMesh.position.y = 0;
@@ -219,18 +220,28 @@ export class Scene3D {
   updateCameraForPlayerCount(count, animate = true) {
     this.playerCount = Math.max(2, Math.min(6, count));
 
-    // Cinematic Overview Angle showing Table and Upper Casino Lounge
-    const targetY = 4.8;
-    const targetZ = 6.2;
-    const targetAngleX = -0.58;
+    const isPortrait = window.innerWidth < window.innerHeight;
+    const extraDistance = Math.max(0, this.playerCount - 4) * 0.35;
+    const targetY = (isPortrait ? 6.3 : 4.8) + extraDistance;
+    const targetZ = (isPortrait ? 7.8 : 6.2) + extraDistance;
+    const targetAngleX = isPortrait ? -0.68 : -0.58;
+    const targetFov = isPortrait ? 68 : 40;
 
     if (this.camera) {
       if (animate && window.gsap) {
         gsap.to(this.camera.position, { y: targetY, z: targetZ, duration: 1.0, ease: 'power2.out' });
         gsap.to(this.camera.rotation, { x: targetAngleX, duration: 1.0, ease: 'power2.out' });
+        gsap.to(this.camera, {
+          fov: targetFov,
+          duration: 1.0,
+          ease: 'power2.out',
+          onUpdate: () => this.camera.updateProjectionMatrix()
+        });
       } else {
         this.camera.position.set(0, targetY, targetZ);
         this.camera.rotation.set(targetAngleX, 0, 0);
+        this.camera.fov = targetFov;
+        this.camera.updateProjectionMatrix();
       }
     }
   }
@@ -306,8 +317,8 @@ export class Scene3D {
   onResize() {
     if (!this.camera || !this.renderer) return;
     this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.updateCameraForPlayerCount(this.playerCount, false);
   }
 
   animate() {

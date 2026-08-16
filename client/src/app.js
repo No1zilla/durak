@@ -114,6 +114,7 @@ class DurakApp {
     this.socket.on('leftRoom', () => {
       this.currentRoomId = null;
       this.gameState = null;
+      this.cardRenderer.clear();
       this.switchView('lobby-view');
       this.scene3D.updateCameraForPlayerCount(4);
     });
@@ -143,6 +144,7 @@ class DurakApp {
   }
 
   onGameStateUpdated(state) {
+    if (!this.currentRoomId || state.id !== this.currentRoomId) return;
     this.gameState = state;
     const isLocalPlayerInGame = state.players.some(p => p.id === this.player.id);
     if (!isLocalPlayerInGame) return;
