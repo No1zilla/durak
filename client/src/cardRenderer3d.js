@@ -26,6 +26,7 @@ export class CardRenderer3D {
     this.onCardPlayRequested = () => {};
 
     this.initInteraction();
+    window.addEventListener('resize', () => this.renderLocalHand(this.handCards));
   }
 
   setDeckSkin(skinId) {
@@ -86,14 +87,17 @@ export class CardRenderer3D {
 
     const aspect = window.innerWidth / window.innerHeight;
     const isPortrait = aspect < 1.0;
+    const isCompactLandscape = !isPortrait && window.innerHeight < 760;
 
     // Mobile / Portrait responsive spread and base positioning
-    const maxSpread = isPortrait ? Math.min(0.72, total * 0.13) : Math.min(0.42, total * 0.065);
+    const maxSpread = isPortrait
+      ? Math.min(0.72, total * 0.13)
+      : Math.min(isCompactLandscape ? 0.66 : 0.5, total * (isCompactLandscape ? 0.11 : 0.08));
     const arcRadius = isPortrait ? 2.6 : 3.2;
-    const baseY = isPortrait ? 1.88 : 1.75;
+    const baseY = isPortrait ? 1.88 : isCompactLandscape ? 1.2 : 1.55;
     const baseZ = isPortrait ? 3.45 : 3.50;
     const rotX = isPortrait ? 0.78 : 0.74;
-    const cardScale = isPortrait ? 0.78 : 0.9;
+    const cardScale = isPortrait ? 0.78 : isCompactLandscape ? 0.5 : 0.68;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);

@@ -139,6 +139,40 @@ async function run() {
       const finalPath = path.join(SCREENSHOT_DIR, '03_game_after_bots.png');
       await page.screenshot({ path: finalPath, fullPage: false });
       console.log(`  ✅ Final screenshot: ${finalPath}`);
+
+      // 7. VK desktop iframe regression
+      await page.setViewport({ width: 896, height: 685, deviceScaleFactor: 1 });
+      await delay(1200);
+      const desktopPath = path.join(SCREENSHOT_DIR, '04_game_vk_desktop.png');
+      await page.screenshot({ path: desktopPath, fullPage: false });
+      const desktopLayout = await page.evaluate(() => {
+        const hand = [...window.app.cardRenderer.cardMeshes.values()].filter(mesh => mesh.userData.isHand);
+        const projected = hand.flatMap(mesh => {
+          const box = new THREE.Box3().setFromObject(mesh);
+          const corners = [];
+          for (const x of [box.min.x, box.max.x]) {
+            for (const y of [box.min.y, box.max.y]) {
+              for (const z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, z));
+            }
+          }
+          return corners.map(point => {
+            const p = point.clone().project(window.app.scene3D.camera);
+            return { y: (-p.y + 1) * window.innerHeight / 2 };
+          });
+        });
+        const hud = document.getElementById('hud-console').getBoundingClientRect();
+        return {
+          handTop: Math.min(...projected.map(point => point.y)),
+          handBottom: Math.max(...projected.map(point => point.y)),
+          hudBottom: hud.bottom,
+          viewportHeight: window.innerHeight
+        };
+      });
+      console.log(`  ✅ VK desktop screenshot: ${desktopPath}`);
+      if (desktopLayout.handTop < desktopLayout.hudBottom - 4 ||
+          desktopLayout.handBottom > desktopLayout.viewportHeight + 2) {
+        throw new Error(`VK desktop hand overlap: ${JSON.stringify(desktopLayout)}`);
+      }
     } else {
       console.log('  ❌ Quick play button not found!');
     }

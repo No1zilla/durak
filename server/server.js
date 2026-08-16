@@ -17,10 +17,17 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
+const BUILD_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'dev';
 
 // Middlewares
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, '../client'), {
+  setHeaders(res, filePath) {
+    res.setHeader('Cache-Control', /\.(?:html|js|css)$/.test(filePath)
+      ? 'no-cache'
+      : 'public, max-age=86400');
+  }
+}));
 
 // Services
 const roomManager = new RoomManager(io);
@@ -31,7 +38,8 @@ app.get('/api/config', (req, res) => {
   res.json({
     vkAppId: VK_APP_ID,
     serverTime: Date.now(),
-    version: '1.0.0-aaa'
+    version: '1.0.0',
+    buildSha: BUILD_SHA
   });
 });
 
