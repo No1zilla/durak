@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
   socket.on('auth', (playerData) => {
     if (currentPlayer) return reject('Сессия уже авторизована');
     const signedIdentity = verifyVkLaunchParams(playerData?.launchParams, process.env.VK_CLIENT_SECRET);
-    if (playerData?.launchParams && !signedIdentity) {
+    if (playerData?.launchParams && process.env.VK_CLIENT_SECRET && !signedIdentity) {
       reject('Неверная подпись VK');
       return;
     }
