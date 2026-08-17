@@ -29,7 +29,7 @@ function detectVkRuntime() {
   } catch {
     // Bridge present but not in VK shell
   }
-  return !!getLaunchParamsString();
+  return false;
 }
 
 class VKService {

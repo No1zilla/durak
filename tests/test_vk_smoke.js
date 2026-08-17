@@ -72,11 +72,15 @@ async function run() {
       hud: document.getElementById('game-hud')?.classList.contains('active'),
       hand: window.app?.cardRenderer?.handCards?.length || 0,
       renderer: !!window.app?.scene3D?.renderer,
-      prompt: document.getElementById('action-prompt')?.textContent || ''
+      prompt: document.getElementById('action-prompt')?.textContent || '',
+      addBotHidden: !!document.getElementById('btn-add-bot')?.hidden,
+      startHidden: !!document.getElementById('btn-start-game')?.hidden
     }));
     assert(game.hud, 'Game HUD not visible');
     assert(game.renderer, 'Renderer missing in match');
     assert(game.hand === 6, `Expected 6 cards, got ${game.hand}`);
+    assert(game.addBotHidden, '+Бот visible during active match');
+    assert(game.startHidden, 'Старт visible during active match');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '07_vk_match.png') });
 
     const cardPlayed = await page.evaluate(() => {
@@ -91,8 +95,50 @@ async function run() {
     await page.click('#btn-leave-game');
     await page.waitForFunction(() => document.getElementById('lobby-view')?.classList.contains('active'), { timeout: 5000 });
 
+    await page.click('#btn-open-create-modal');
+    await delay(300);
+    await page.click('#btn-confirm-create-room');
+    await page.waitForFunction(() => document.getElementById('game-hud')?.classList.contains('active'), { timeout: 8000 });
+    await delay(400);
+    const waiting = await page.evaluate(() => ({
+      prompt: document.getElementById('action-prompt')?.textContent || '',
+      addBotHidden: !!document.getElementById('btn-add-bot')?.hidden,
+      startHidden: !!document.getElementById('btn-start-game')?.hidden,
+      players: window.app?.gameState?.players?.length || 0
+    }));
+    assert(!waiting.addBotHidden, '+Бот hidden in waiting host room');
+    assert(waiting.startHidden, 'Старт shown with a single player');
+    await page.click('#btn-add-bot');
+    await page.waitForFunction(() => (window.app?.gameState?.players?.length || 0) >= 2, { timeout: 5000 });
+    await delay(200);
+    const ready = await page.evaluate(() => ({
+      startHidden: !!document.getElementById('btn-start-game')?.hidden,
+      players: window.app?.gameState?.players?.length || 0
+    }));
+    assert(!ready.startHidden, 'Старт hidden after adding a bot');
+    await page.click('#btn-start-game');
+    await page.waitForFunction(() => window.app?.cardRenderer?.handCards?.length === 6, { timeout: 8000 });
+    await delay(400);
+    const started = await page.evaluate(() => ({
+      addBotHidden: !!document.getElementById('btn-add-bot')?.hidden,
+      startHidden: !!document.getElementById('btn-start-game')?.hidden,
+      state: window.app?.gameState?.state
+    }));
+    assert(started.addBotHidden && started.startHidden, 'Host controls still visible after start');
+    assert(['ATTACKING', 'DEFENDING'].includes(started.state), `Created table state ${started.state}`);
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '09_vk_created_table.png') });
+    await page.click('#btn-leave-game');
+    await page.waitForFunction(() => document.getElementById('lobby-view')?.classList.contains('active'), { timeout: 5000 });
+
+    await page.goto(`${SERVER}/?vk_user_id=4242&vk_app_id=54720415&sign=devsign`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await page.waitForFunction(() => document.getElementById('boot-screen')?.classList.contains('hidden'), { timeout: 12000 });
+    await page.waitForFunction(() => window.app?.player?.id === 'guest_vk_4242', { timeout: 8000 });
+    const queryAuth = await page.evaluate(() => window.app?.player?.id || '');
+    assert(queryAuth === 'guest_vk_4242', `Query auth id was ${queryAuth}`);
+
+    await page.goto('about:blank');
     await page.goto(`${SERVER}/#vk_user_id=4242&vk_app_id=54720415&sign=devsign`, { waitUntil: 'networkidle2', timeout: 15000 });
-    await page.waitForFunction(() => window.app?.player?.id === 'guest_vk_4242', { timeout: 10000 });
+    await page.waitForFunction(() => window.app?.player?.id === 'guest_vk_4242', { timeout: 8000 });
     const hashAuth = await page.evaluate(() => window.app?.player?.id || '');
     assert(hashAuth === 'guest_vk_4242', `Hash auth id was ${hashAuth}`);
 
