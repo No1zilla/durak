@@ -93,6 +93,7 @@ class DurakApp {
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
+      this.player = { ...this.player, ...player, rawId: this.player.rawId };
       this.userEconomy = userEconomy;
       this.updateHeaderProfile();
       if (userEconomy.activeTable) {
