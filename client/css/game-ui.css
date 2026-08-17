@@ -39,6 +39,16 @@
   gap: 6px;
 }
 
+.btn-start-game {
+  width: auto;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ca8a04 0%, #facc15 100%);
+  color: #111;
+  border-color: rgba(250, 204, 21, 0.7);
+}
+
 .trump-indicator {
   display: flex;
   align-items: center;

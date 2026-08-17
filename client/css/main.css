@@ -21,8 +21,8 @@
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
 
-  --font-display: 'Cinzel', serif;
-  --font-body: 'Outfit', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -45,6 +45,10 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  position: fixed;
+  inset: 0;
   background: #080605 url('../assets/table/casino_bg_portrait.jpg') top center / cover no-repeat;
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -57,8 +61,8 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 1;
   pointer-events: auto;
   background: transparent;
@@ -136,8 +140,8 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(circle at center, transparent 35%, rgba(4, 6, 10, 0.8) 100%);
@@ -145,8 +149,8 @@ html, body {
 
 #app-root {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -540,8 +544,8 @@ button, input, select {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 100;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(16px);
@@ -794,4 +798,43 @@ input[type="range"] {
   background: rgba(212, 175, 55, 0.15);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
+}
+
+#boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 5, 0.92);
+  pointer-events: auto;
+}
+
+#boot-screen.hidden {
+  display: none;
+}
+
+.boot-card {
+  text-align: center;
+  padding: 24px 28px;
+  border-radius: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(18, 24, 36, 0.88);
+}
+
+.boot-title {
+  font-family: var(--font-display);
+  letter-spacing: 2px;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.boot-status {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+#boot-screen.error .boot-status {
+  color: #fca5a5;
 }
