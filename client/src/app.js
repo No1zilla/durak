@@ -39,6 +39,7 @@ class DurakApp {
     // 2. Initialize 3D Engine
     const container = document.getElementById('canvas-container');
     this.scene3D = new Scene3D(container);
+    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
     this.cardRenderer = new CardRenderer3D(this.scene3D);
     this.throwEngine = new ThrowItemsEngine(this.scene3D);
 
@@ -86,7 +87,8 @@ class DurakApp {
       this.socket.emit('auth', {
         id: this.player.id,
         name: this.player.name,
-        avatar: this.player.avatar
+        avatar: this.player.avatar,
+        launchParams: new URLSearchParams(window.location.search).has('sign') ? window.location.search : ''
       });
     });
 
@@ -113,6 +115,9 @@ class DurakApp {
     this.socket.on('leftRoom', () => {
       this.currentRoomId = null;
       this.gameState = null;
+      this._seatSignature = null;
+      this.cardRenderer.clear();
+      this.renderFallbackCards([], []);
       this.switchView('lobby-view');
       this.scene3D.updateCameraForPlayerCount(4);
     });
@@ -142,6 +147,7 @@ class DurakApp {
   }
 
   onGameStateUpdated(state) {
+    if (!this.currentRoomId || state.id !== this.currentRoomId) return;
     this.gameState = state;
     const isLocalPlayerInGame = state.players.some(p => p.id === this.player.id);
     if (!isLocalPlayerInGame) return;
@@ -154,6 +160,7 @@ class DurakApp {
     if (localPlayer) {
       this.cardRenderer.renderLocalHand(localPlayer.hand || []);
     }
+    this.renderFallbackCards(localPlayer?.hand || [], state.tablePairs || []);
 
     // 3. Render 3D Opponents Hands
     this.cardRenderer.renderOpponentsHands(state.players, this.player.id);
@@ -188,6 +195,14 @@ class DurakApp {
 
   renderPlayerSeats(state) {
     const container = document.getElementById('player-seats-hud');
+    const signature = state.players
+      .map(player => `${player.id}:${player.name}:${player.avatar}:${player.cardsCount}:${player.id === state.attackerId}:${player.id === state.defenderId}`)
+      .join('|');
+    if (signature === this._seatSignature) {
+      this.updatePlayerSeatPositions(state);
+      return;
+    }
+    this._seatSignature = signature;
     container.innerHTML = '';
 
     const total = state.players.length;
@@ -225,6 +240,28 @@ class DurakApp {
     this.updatePlayerSeatPositions(state);
   }
 
+  renderFallbackCards(hand, pairs) {
+    if (this.scene3D.renderer) return;
+    const handContainer = document.getElementById('fallback-hand');
+    const tableContainer = document.getElementById('fallback-table-cards');
+    if (!handContainer || !tableContainer) return;
+    handContainer.replaceChildren(...hand.map(card => {
+      const button = document.createElement('button');
+      button.className = `fallback-card ${card.color === 'red' ? 'red' : ''}`;
+      button.textContent = `${card.label}${card.symbol}`;
+      button.addEventListener('click', () => this.handleCardPlay(card));
+      return button;
+    }));
+    tableContainer.replaceChildren(...pairs.flatMap(pair =>
+      [pair.attack, pair.defense].filter(Boolean).map(card => {
+        const element = document.createElement('div');
+        element.className = `fallback-card ${card.color === 'red' ? 'red' : ''}`;
+        element.textContent = `${card.label}${card.symbol}`;
+        return element;
+      })
+    ));
+  }
+
   updatePlayerSeatPositions(state) {
     const total = state.players.length;
     const seat3DPositions = this.scene3D.getSeatPositions(total);
@@ -239,8 +276,8 @@ class DurakApp {
 
       if (screenPos.visible) {
         badge.style.display = 'flex';
-        badge.style.left = `${screenPos.x}px`;
-        badge.style.top = `${screenPos.y}px`;
+        badge.style.left = `${Math.min(window.innerWidth - 82, Math.max(82, screenPos.x))}px`;
+        badge.style.top = `${Math.min(window.innerHeight - 170, Math.max(96, screenPos.y))}px`;
       } else {
         badge.style.display = 'none';
       }
@@ -680,10 +717,10 @@ class DurakApp {
           </button>
         `;
         card.querySelector('button').addEventListener('click', async () => {
-          await vk.openVKPay(pack.priceRub, pack.name);
-          this.userEconomy.chips += pack.chips;
-          this.updateHeaderProfile();
-          this.showToast(`Успешно начислено +${pack.chips} фишек!`);
+          const payment = await vk.openVKPay(pack.priceRub, pack.name);
+          this.showToast(payment
+            ? 'Платёж отправлен на серверную проверку'
+            : 'VK Pay недоступен');
         });
         container.appendChild(card);
       });

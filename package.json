@@ -5,10 +5,10 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "node server/server.js"
+    "dev": "node server/server.js",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
   },

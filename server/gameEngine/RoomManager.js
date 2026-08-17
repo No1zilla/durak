@@ -76,6 +76,9 @@ class RoomManager {
   joinRoom(roomId, player, password = null) {
     const room = this.rooms.get(roomId);
     if (!room) return { success: false, error: 'Стол не найден' };
+    if (room.game.state !== GAME_STATES.WAITING) {
+      return { success: false, error: 'Игра уже началась' };
+    }
 
     if (room.password && room.password !== password) {
       return { success: false, error: 'Неверный пароль' };
@@ -114,6 +117,7 @@ class RoomManager {
     if (humanPlayers.length === 0) {
       this.rooms.delete(roomId);
     } else {
+      if (room.hostId === playerId) room.hostId = humanPlayers[0].id;
       this.broadcastState(roomId);
     }
   }
@@ -155,6 +159,7 @@ class RoomManager {
   addBot(roomId, customName = null, customAvatar = null) {
     const room = this.rooms.get(roomId);
     if (!room) return false;
+    if (room.game.state !== GAME_STATES.WAITING) return false;
     if (room.game.players.length >= room.game.maxPlayers) return false;
 
     const botNames = ['Алексей (Бот)', 'Екатерина (Бот)', 'Максим (Бот)', 'Ольга (Бот)', 'Сергей (Бот)'];

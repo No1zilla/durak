@@ -64,6 +64,74 @@ html, body {
   background: transparent;
 }
 
+#webgl-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: none;
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 28%, rgba(3, 12, 8, 0.25) 55%, rgba(2, 5, 4, 0.88) 100%),
+    url('../assets/table/oct_table_master.jpg') center 42% / min(92vw, 760px) auto no-repeat,
+    #060807;
+  pointer-events: none;
+}
+
+#webgl-fallback.visible {
+  display: block;
+}
+
+.fallback-notice {
+  position: absolute;
+  top: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: var(--radius-full);
+  background: rgba(8, 12, 10, 0.75);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#fallback-table-cards,
+#fallback-hand {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  transform: translateX(-50%);
+}
+
+#fallback-table-cards {
+  top: 42%;
+}
+
+#fallback-hand {
+  bottom: 24px;
+  width: calc(100% - 20px);
+  pointer-events: auto;
+}
+
+.fallback-card {
+  width: clamp(38px, 11vw, 62px);
+  aspect-ratio: 5 / 7;
+  padding: 5px;
+  border: 1px solid #d8cfbd;
+  border-radius: 7px;
+  background: #f7f2e8;
+  color: #15171c;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  font: 800 15px/1 var(--font-body);
+  text-align: left;
+}
+
+.fallback-card.red {
+  color: #a51d2d;
+}
+
 .vignette-overlay {
   position: fixed;
   top: 0;
@@ -88,6 +156,17 @@ html, body {
 button, input, select {
   pointer-events: auto;
   font-family: inherit;
+}
+
+.ui-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .glass-panel {
@@ -334,7 +413,9 @@ button, input, select {
 }
 
 .btn-icon-hero {
-  font-size: 22px;
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.6;
 }
 
 .btn-text-block strong {

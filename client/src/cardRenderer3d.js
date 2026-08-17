@@ -3,7 +3,7 @@
  */
 /* global THREE, gsap */
 
-import { createCardFaceTexture, createCardBackTexture } from './cards.js';
+import { CARD_ASPECT, createCardFaceTexture, createCardBackTexture } from './cards.js';
 import { sounds } from './audio.js';
 
 export class CardRenderer3D {
@@ -26,6 +26,7 @@ export class CardRenderer3D {
     this.onCardPlayRequested = () => {};
 
     this.initInteraction();
+    window.addEventListener('resize', () => this.renderLocalHand(this.handCards));
   }
 
   setDeckSkin(skinId) {
@@ -33,8 +34,8 @@ export class CardRenderer3D {
   }
 
   createCardMesh(card, isFaceUp = true) {
-    const cardWidth = 0.76;
-    const cardHeight = 1.06;
+    const cardHeight = 1.05;
+    const cardWidth = cardHeight * CARD_ASPECT;
     const cardThickness = 0.008;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThickness, cardHeight);
@@ -86,14 +87,17 @@ export class CardRenderer3D {
 
     const aspect = window.innerWidth / window.innerHeight;
     const isPortrait = aspect < 1.0;
+    const isCompactLandscape = !isPortrait && window.innerHeight < 760;
 
     // Mobile / Portrait responsive spread and base positioning
-    const spreadScale = isPortrait ? Math.min(1.0, aspect / 0.7) : 1.0;
-    const maxSpread = Math.min(0.42 * spreadScale, total * 0.065 * spreadScale);
+    const maxSpread = isPortrait
+      ? Math.min(0.72, total * 0.13)
+      : Math.min(isCompactLandscape ? 0.66 : 0.5, total * (isCompactLandscape ? 0.11 : 0.08));
     const arcRadius = isPortrait ? 2.6 : 3.2;
-    const baseY = isPortrait ? 1.88 : 1.75;
+    const baseY = isPortrait ? 1.88 : isCompactLandscape ? 1.75 : 1.55;
     const baseZ = isPortrait ? 3.45 : 3.50;
     const rotX = isPortrait ? 0.78 : 0.74;
+    const cardScale = isPortrait ? 0.78 : isCompactLandscape ? 0.5 : 0.68;
 
     cards.forEach((card, i) => {
       let mesh = this.cardMeshes.get(card.id);
@@ -106,6 +110,7 @@ export class CardRenderer3D {
         this.scene.add(mesh);
         this.cardMeshes.set(card.id, mesh);
       }
+      mesh.scale.setScalar(cardScale);
 
       const progress = total === 1 ? 0.5 : i / (total - 1);
       const angle = (progress - 0.5) * maxSpread;
@@ -144,6 +149,13 @@ export class CardRenderer3D {
    * Renders 3D Opponents' Card Backs around the table
    */
   renderOpponentsHands(players, localPlayerId) {
+    const signature = `${this.activeDeckSkin}|${players
+      .filter(player => player.id !== localPlayerId)
+      .map(player => `${player.id}:${player.cardsCount}`)
+      .join('|')}`;
+    if (signature === this._opponentsSignature) return;
+    this._opponentsSignature = signature;
+
     this.opponentCardMeshes.forEach(m => {
       if (m.geometry) m.geometry.dispose();
       if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
@@ -190,7 +202,21 @@ export class CardRenderer3D {
    * Renders Deck Stack and Perpendicular Trump Card
    */
   renderDeckAndTrump(remainingCount, trumpCard) {
-    if (!trumpCard) return;
+    if (!trumpCard) {
+      [...this.deckMeshes, this.trumpMesh].filter(Boolean).forEach(mesh => {
+        this.scene.remove(mesh);
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.filter(Boolean).forEach(material => material.dispose());
+      });
+      this.deckMeshes = [];
+      this.trumpMesh = null;
+      this._deckSignature = null;
+      return;
+    }
+    const signature = `${this.activeDeckSkin}|${remainingCount}|${trumpCard.id}`;
+    if (signature === this._deckSignature) return;
+    this._deckSignature = signature;
 
     // Trump Card (Horizontal, Face UP under deck)
     if (!this.trumpMesh) {
@@ -360,5 +386,34 @@ export class CardRenderer3D {
       duration: 0.15,
       ease: 'power1.out'
     });
+  }
+
+  clear() {
+    const meshes = new Set([
+      ...this.cardMeshes.values(),
+      ...this.opponentCardMeshes,
+      ...this.deckMeshes,
+      this.trumpMesh
+    ].filter(Boolean));
+
+    meshes.forEach(mesh => {
+      gsap.killTweensOf(mesh.position);
+      gsap.killTweensOf(mesh.rotation);
+      this.scene.remove(mesh);
+      mesh.geometry?.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.filter(Boolean).forEach(material => material.dispose());
+    });
+
+    this.cardMeshes.clear();
+    this.handCards = [];
+    this.tablePairMeshes = [];
+    this.deckMeshes = [];
+    this.opponentCardMeshes = [];
+    this._opponentsSignature = null;
+    this._deckSignature = null;
+    this.trumpMesh = null;
+    this.selectedCard = null;
+    this.hoveredCard = null;
   }
 }

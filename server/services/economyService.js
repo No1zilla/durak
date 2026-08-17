@@ -99,12 +99,6 @@ class EconomyService {
     return { success: true, user };
   }
 
-  addVKPayPurchase(vkId, itemType, amount) {
-    const user = this.getUser(vkId);
-    if (itemType === 'chips') user.chips += amount;
-    if (itemType === 'gold') user.gold += amount;
-    return { success: true, user };
-  }
 }
 
 module.exports = { EconomyService, SKINS_CATALOG };
