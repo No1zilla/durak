@@ -273,9 +273,10 @@
           <button class="btn-close-modal" id="btn-close-shop">✕</button>
         </div>
         <div class="shop-tabs">
-          <button class="shop-tab active" data-tab="decks">Рубашки карт</button>
-          <button class="shop-tab" data-tab="tables">Сукно столов</button>
-          <button class="shop-tab" data-tab="currency">Фишки & VK Pay</button>
+          <button class="shop-tab active" data-tab="decks">Рубашки</button>
+          <button class="shop-tab" data-tab="tables">Столы</button>
+          <button class="shop-tab" data-tab="frames">Рамки</button>
+          <button class="shop-tab" data-tab="currency">Фишки</button>
         </div>
         <div class="modal-body shop-items-grid" id="shop-catalog-container">
           <!-- Dynamically populated shop items -->
@@ -283,7 +284,25 @@
       </div>
     </div>
 
-    <!-- Throw Item Radial Menu -->
+    <div id="modal-daily" class="modal-overlay">
+      <div class="modal-card glass-modal">
+        <div class="modal-header">
+          <h2>Награды</h2>
+          <button class="btn-close-modal" id="btn-close-daily">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="daily-streak-label">Серия: <strong id="daily-streak-value">0</strong>/7 дней</p>
+          <div class="daily-streak-row" id="daily-streak-row"></div>
+          <button id="btn-claim-daily" class="btn-hero primary full-width">Забрать ежедневку</button>
+          <button id="btn-claim-starter" class="btn-hero accent full-width" style="margin-top:8px;">Стартовый набор: рубашка 1913</button>
+          <button id="btn-claim-rewarded" class="btn-glass full-width" style="margin-top:8px;">Реклама за 400 фишек</button>
+          <p class="daily-note" id="rewarded-left">Реклама: 3/3</p>
+          <h3 class="quests-title">Задания дня</h3>
+          <div id="quests-list"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="menu-throw-items" class="throw-radial-menu hidden">
       <button class="btn-throw-item" data-item="tomato" title="Помидор">🍅</button>
       <button class="btn-throw-item" data-item="champagne" title="Шампанское">🍾</button>
@@ -325,7 +344,13 @@
             <span>✨ Опубликовать в VK Историю</span>
           </button>
           <button id="btn-share-vk-wall" class="btn-glass full-width">
-            <span>📝 На стену VK</span>
+            <span>На стену VK</span>
+          </button>
+          <button id="btn-invite-friend" class="btn-glass full-width">
+            <span>Пригласить друга</span>
+          </button>
+          <button id="btn-rematch" class="btn-hero primary full-width">
+            <span>Еще партия</span>
           </button>
           <button id="btn-victory-lobby" class="btn-ghost full-width">
             <span>В лобби</span>

@@ -75,7 +75,17 @@ class DurakApp {
     if (this.userEconomy) {
       document.getElementById('user-chips').textContent = Number(this.userEconomy.chips).toLocaleString();
       document.getElementById('user-gold').textContent = Number(this.userEconomy.gold).toLocaleString();
+      document.querySelector('.avatar-wrapper')?.classList.toggle('frame-gold', this.userEconomy.activeFrame === 'frame_gold');
     }
+  }
+
+  applyEconomy(user) {
+    if (!user) return;
+    this.userEconomy = user;
+    this.updateHeaderProfile();
+    if (user.activeTable) this.applyTableSkin(user.activeTable);
+    if (user.activeDeck) this.cardRenderer?.setDeckSkin(user.activeDeck);
+    this.renderDailyModal();
   }
 
   initSocket() {
@@ -97,14 +107,7 @@ class DurakApp {
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
       this.player = { ...this.player, ...player, rawId: this.player.rawId };
-      this.userEconomy = userEconomy;
-      this.updateHeaderProfile();
-      if (userEconomy.activeTable) {
-        this.applyTableSkin(userEconomy.activeTable);
-      }
-      if (userEconomy.activeDeck) {
-        this.cardRenderer.setDeckSkin(userEconomy.activeDeck);
-      }
+      this.applyEconomy(userEconomy);
     });
 
     this.socket.on('roomList', (rooms) => this.renderRoomList(rooms));
@@ -122,10 +125,15 @@ class DurakApp {
       this.gameState = null;
       this.isHost = false;
       this._seatSignature = null;
+      this._victoryFor = null;
       this.cardRenderer.clear();
       this.renderFallbackCards([], []);
       this.switchView('lobby-view');
       this.scene3D.updateCameraForPlayerCount(4);
+      if (this._wantRematch) {
+        this._wantRematch = false;
+        this.socket.emit('quickMatch', { mode: this._lastMode || 'podkidnoy' });
+      }
     });
 
     this.socket.on('gameState', (state) => this.onGameStateUpdated(state));
@@ -141,9 +149,8 @@ class DurakApp {
 
     this.socket.on('dailyBonusResult', (res) => {
       if (res.success) {
-        this.userEconomy = res.user;
-        this.updateHeaderProfile();
-        this.showToast(`Получено +${res.reward.chips} фишек и +${res.reward.gold} золота`);
+        this.applyEconomy(res.user);
+        this.showToast(`Серия ${res.reward.streak}/7: +${res.reward.chips} фишек и +${res.reward.gold} золота`);
         sounds.playChipsClink();
         vk.taptic('medium');
       } else {
@@ -151,12 +158,40 @@ class DurakApp {
       }
     });
 
+    this.socket.on('economyUpdate', (user) => this.applyEconomy(user));
+
+    this.socket.on('rewardedResult', (res) => {
+      if (res?.success) {
+        this.applyEconomy(res.user);
+        this.showToast(`+${res.reward.chips} за рекламу`);
+      } else this.showToast(res?.error || 'Реклама недоступна');
+    });
+
+    this.socket.on('starterResult', (res) => {
+      if (res?.success) {
+        this.applyEconomy(res.user);
+        this.showToast('Стартовый набор получен');
+      } else this.showToast(res?.error || 'Набор недоступен');
+    });
+
+    this.socket.on('questResult', (res) => {
+      if (res?.success) {
+        this.applyEconomy(res.user);
+        this.showToast(`Задание: +${res.reward.chips}`);
+      } else this.showToast(res?.error || 'Задание не готово');
+    });
+
+    this.socket.on('payOrderResult', (res) => {
+      if (!res?.success) {
+        this.showToast(res?.error || 'Не удалось создать заказ');
+        return;
+      }
+      this.showToast('Заказ создан. Фишки придут после подтверждения VK Pay');
+    });
+
     this.socket.on('buySkinResult', (res) => {
       if (res?.success) {
-        this.userEconomy = res.user;
-        this.updateHeaderProfile();
-        if (res.user.activeDeck) this.cardRenderer.setDeckSkin(res.user.activeDeck);
-        if (res.user.activeTable) this.applyTableSkin(res.user.activeTable);
+        this.applyEconomy(res.user);
         const tab = document.querySelector('.shop-tab.active')?.dataset.tab;
         if (tab) this.renderShopTab(tab);
         this.showToast('Скин куплен');
@@ -167,9 +202,7 @@ class DurakApp {
 
     this.socket.on('equipSkinResult', (res) => {
       if (res?.success) {
-        this.userEconomy = res.user;
-        if (res.user.activeDeck) this.cardRenderer.setDeckSkin(res.user.activeDeck);
-        if (res.user.activeTable) this.applyTableSkin(res.user.activeTable);
+        this.applyEconomy(res.user);
         const tab = document.querySelector('.shop-tab.active')?.dataset.tab;
         if (tab) this.renderShopTab(tab);
       } else {
@@ -422,6 +455,9 @@ class DurakApp {
   }
 
   handleGameOver(state) {
+    if (this._victoryFor === state.id) return;
+    this._victoryFor = state.id;
+    this._lastMode = state.mode;
     const isWinner = state.winners && state.winners.some(w => w.id === this.player.id);
     const isDurak = state.durak && state.durak.id === this.player.id;
 
@@ -432,18 +468,20 @@ class DurakApp {
     if (isWinner) {
       vicTitle.textContent = 'ПОБЕДА';
       vicSubtitle.textContent = `${state.mode === 'perevodnoy' ? 'Переводной' : 'Подкидной'} Дурак • Победа!`;
-      vicReward.textContent = `+${state.bet * (state.players.length - 1)}`;
+      vicReward.textContent = '+50';
       sounds.playVictory();
       vk.taptic('heavy');
     } else if (isDurak) {
       vicTitle.textContent = 'ДУРАК';
       vicSubtitle.textContent = 'Вы остались с картами на руках';
-      vicReward.textContent = `-${state.bet}`;
+      vicReward.textContent = '0';
     } else {
       vicTitle.textContent = 'РАУНД ОКОНЧЕН';
       vicSubtitle.textContent = 'Партия завершена';
       vicReward.textContent = '0';
     }
+
+    document.getElementById('vic-streak').textContent = String(this.userEconomy?.winStreak || 0);
 
     document.getElementById('vic-player-name').textContent = this.player.name;
     if (this.player.avatar) {
@@ -576,7 +614,29 @@ class DurakApp {
     });
 
     document.getElementById('btn-daily').addEventListener('click', () => {
+      document.getElementById('modal-daily').classList.add('active');
+      this.renderDailyModal();
+    });
+
+    document.getElementById('btn-close-daily')?.addEventListener('click', () => {
+      document.getElementById('modal-daily').classList.remove('active');
+    });
+
+    document.getElementById('btn-claim-daily')?.addEventListener('click', () => {
       this.socket.emit('claimDailyBonus');
+    });
+
+    document.getElementById('btn-claim-starter')?.addEventListener('click', () => {
+      this.socket.emit('claimStarter');
+    });
+
+    document.getElementById('btn-claim-rewarded')?.addEventListener('click', async () => {
+      const watched = await vk.showRewardedAd();
+      if (!watched) {
+        this.showToast('Награда только после просмотра');
+        return;
+      }
+      this.socket.emit('claimRewarded');
     });
 
     document.getElementById('btn-shop').addEventListener('click', () => {
@@ -629,6 +689,22 @@ class DurakApp {
     document.getElementById('btn-share-vk-wall').addEventListener('click', async () => {
       const res = await vk.postToWall('Победа в Дурак Онлайн 3D!');
       if (res?.skipped) this.showToast('Публикация доступна внутри VK');
+    });
+
+    document.getElementById('btn-invite-friend')?.addEventListener('click', async () => {
+      const url = 'https://vk.com/app54720415';
+      try {
+        await navigator.clipboard.writeText(url);
+        this.showToast('Ссылка на игру скопирована');
+      } catch {
+        this.showToast(url);
+      }
+    });
+
+    document.getElementById('btn-rematch')?.addEventListener('click', () => {
+      document.getElementById('modal-victory').classList.remove('active');
+      this._wantRematch = true;
+      this.socket.emit('leaveRoom');
     });
 
     document.getElementById('btn-victory-lobby').addEventListener('click', () => {
@@ -700,82 +776,107 @@ class DurakApp {
     const container = document.getElementById('shop-catalog-container');
     container.innerHTML = '';
     if (!this.shopCatalog) return;
+    const econ = this.userEconomy;
 
-    if (tab === 'decks') {
-      this.shopCatalog.decks.forEach(item => {
-        const isOwned = this.userEconomy && this.userEconomy.ownedDecks.includes(item.id);
-        const isEquipped = this.userEconomy && this.userEconomy.activeDeck === item.id;
-
+    const renderItems = (items, category, ownedKey, activeKey) => {
+      items.forEach(item => {
+        const isOwned = econ && econ[ownedKey]?.includes(item.id);
+        const isEquipped = econ && econ[activeKey] === item.id;
         const card = document.createElement('div');
         card.className = 'shop-item-card';
         card.innerHTML = `
+          ${item.preview
+            ? `<img class="shop-item-preview" src="${item.preview}" alt="">`
+            : `<div class="shop-item-swatch ${item.id}"></div>`}
           <div class="shop-item-name">${item.name}</div>
-          <button class="btn-buy-skin ${isEquipped ? 'equipped' : ''}">
-            ${isEquipped ? 'Надето' : isOwned ? 'Надеть' : `${item.priceCoins} 🪙`}
+          <button class="btn-buy-skin ${isEquipped ? 'equipped' : ''}" data-busy="0">
+            ${isEquipped ? 'Надето' : isOwned ? 'Надеть' : `${item.priceCoins || 0} фишек`}
           </button>
         `;
         const btn = card.querySelector('button');
         btn.addEventListener('click', () => {
-          if (isOwned) {
-            this.socket.emit('equipSkin', { category: 'decks', skinId: item.id });
-            this.userEconomy.activeDeck = item.id;
-            this.cardRenderer.setDeckSkin(item.id);
-            this.renderShopTab('decks');
-          } else {
-            this.socket.emit('buySkin', { category: 'decks', skinId: item.id, useCurrency: 'chips' });
-          }
+          if (btn.dataset.busy === '1') return;
+          btn.dataset.busy = '1';
+          if (isOwned) this.socket.emit('equipSkin', { category, skinId: item.id });
+          else this.socket.emit('buySkin', { category, skinId: item.id, useCurrency: 'chips' });
         });
         container.appendChild(card);
       });
-    } else if (tab === 'tables') {
-      this.shopCatalog.tables.forEach(item => {
-        const isOwned = this.userEconomy && this.userEconomy.ownedTables.includes(item.id);
-        const isEquipped = this.userEconomy && this.userEconomy.activeTable === item.id;
+    };
 
-        const card = document.createElement('div');
-        card.className = 'shop-item-card';
-        card.innerHTML = `
-          <div class="shop-item-name">${item.name}</div>
-          <button class="btn-buy-skin ${isEquipped ? 'equipped' : ''}">
-            ${isEquipped ? 'Надето' : isOwned ? 'Надеть' : `${item.priceCoins} 🪙`}
-          </button>
-        `;
-        const btn = card.querySelector('button');
-        btn.addEventListener('click', () => {
-          if (isOwned) {
-            this.socket.emit('equipSkin', { category: 'tables', skinId: item.id });
-            this.userEconomy.activeTable = item.id;
-            this.applyTableSkin(item.id);
-            this.renderShopTab('tables');
-          } else {
-            this.socket.emit('buySkin', { category: 'tables', skinId: item.id, useCurrency: 'chips' });
-          }
-        });
-        container.appendChild(card);
-      });
-    } else if (tab === 'currency') {
-      const packs = [
-        { name: '10,000 Фишек', priceRub: 99, chips: 10000 },
-        { name: '50,000 Фишек + VIP', priceRub: 299, chips: 50000 },
-        { name: '150,000 Фишек (Хит)', priceRub: 699, chips: 150000 }
-      ];
-
-      packs.forEach(pack => {
+    if (tab === 'decks') renderItems(this.shopCatalog.decks, 'decks', 'ownedDecks', 'activeDeck');
+    else if (tab === 'tables') renderItems(this.shopCatalog.tables, 'tables', 'ownedTables', 'activeTable');
+    else if (tab === 'frames') renderItems(this.shopCatalog.frames || [], 'frames', 'ownedFrames', 'activeFrame');
+    else if (tab === 'currency') {
+      if (econ && !econ.starterClaimed) {
+        const starter = document.createElement('div');
+        starter.className = 'shop-item-card';
+        starter.innerHTML = `<div class="shop-item-name">Стартовый набор</div><button class="btn-hero accent" style="width:100%;">Бесплатно: рубашка 1913</button>`;
+        starter.querySelector('button').addEventListener('click', () => this.socket.emit('claimStarter'));
+        container.appendChild(starter);
+      }
+      (this.shopCatalog.packs || []).forEach(pack => {
         const card = document.createElement('div');
         card.className = 'shop-item-card';
         card.innerHTML = `
           <div class="shop-item-name">${pack.name}</div>
           <button class="btn-hero vk-blue" style="width:100%; padding: 10px 8px; justify-content:center;">
-            <span>${pack.priceRub} ₽ (VK Pay)</span>
+            <span>${pack.priceRub} ₽ VK Pay</span>
           </button>
         `;
         card.querySelector('button').addEventListener('click', async () => {
+          this.socket.emit('createPayOrder', { sku: pack.id });
           const payment = await vk.openVKPay(pack.priceRub, pack.name);
-          this.showToast(payment
-            ? 'Платёж отправлен на серверную проверку'
-            : 'VK Pay недоступен');
+          this.showToast(payment ? 'Платёж ушёл на серверную проверку' : 'VK Pay недоступен, заказ pending');
         });
         container.appendChild(card);
+      });
+    }
+  }
+
+  renderDailyModal() {
+    const econ = this.userEconomy;
+    if (!econ) return;
+    const streakEl = document.getElementById('daily-streak-value');
+    if (streakEl) streakEl.textContent = String(econ.dailyStreak || 0);
+    const row = document.getElementById('daily-streak-row');
+    if (row) {
+      row.innerHTML = '';
+      for (let i = 1; i <= 7; i++) {
+        const dot = document.createElement('span');
+        dot.className = `streak-dot ${i <= (econ.dailyStreak || 0) ? 'filled' : ''}`;
+        dot.textContent = String(i);
+        row.appendChild(dot);
+      }
+    }
+    const dailyBtn = document.getElementById('btn-claim-daily');
+    if (dailyBtn) {
+      dailyBtn.disabled = !econ.dailyAvailable;
+      dailyBtn.textContent = econ.dailyAvailable ? 'Забрать ежедневку' : 'Уже получено сегодня';
+    }
+    const starterBtn = document.getElementById('btn-claim-starter');
+    if (starterBtn) starterBtn.hidden = !!econ.starterClaimed;
+    const rewardedLeft = document.getElementById('rewarded-left');
+    if (rewardedLeft) rewardedLeft.textContent = `Осталось рекламы: ${econ.rewardedLeft} из 3`;
+    const rewardedBtn = document.getElementById('btn-claim-rewarded');
+    if (rewardedBtn) rewardedBtn.disabled = (econ.rewardedLeft || 0) <= 0;
+    const list = document.getElementById('quests-list');
+    if (list) {
+      const quests = this.shopCatalog?.quests || [
+        { id: 'play_match', name: 'Сыграть партию', chips: 400 },
+        { id: 'win_match', name: 'Выиграть партию', chips: 800 },
+        { id: 'claim_daily', name: 'Забрать ежедневку', chips: 300 }
+      ];
+      const flags = { play_match: econ.quests?.play, win_match: econ.quests?.win, claim_daily: econ.quests?.daily };
+      list.innerHTML = '';
+      quests.forEach(quest => {
+        const claimed = econ.quests?.claimed?.includes(quest.id);
+        const done = !!flags[quest.id];
+        const rowEl = document.createElement('div');
+        rowEl.className = 'quest-row';
+        rowEl.innerHTML = `<span>${quest.name}</span><button class="btn-buy-skin" ${claimed || !done ? 'disabled' : ''}>${claimed ? 'Готово' : done ? `+${quest.chips}` : 'В работе'}</button>`;
+        rowEl.querySelector('button').addEventListener('click', () => this.socket.emit('claimQuest', { questId: quest.id }));
+        list.appendChild(rowEl);
       });
     }
   }

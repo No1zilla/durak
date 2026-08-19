@@ -61,8 +61,32 @@ async function run() {
     await delay(400);
     const shopOpen = await page.evaluate(() => document.getElementById('modal-shop')?.classList.contains('active'));
     assert(shopOpen, 'Shop did not open');
+    const shopPreview = await page.evaluate(() => !!document.querySelector('.shop-item-preview'));
+    assert(shopPreview, 'Shop has no card-back preview');
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '06_vk_shop.png') });
     await page.click('#btn-close-shop');
+    await delay(200);
+
+    await page.click('#btn-daily');
+    await delay(400);
+    const dailyOpen = await page.evaluate(() => document.getElementById('modal-daily')?.classList.contains('active'));
+    assert(dailyOpen, 'Daily modal did not open');
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '10_daily_rewards.png') });
+    await page.click('#btn-claim-daily');
+    await delay(600);
+    await page.click('#btn-claim-starter');
+    await delay(800);
+    const afterBonus = await page.evaluate(() => ({
+      chips: window.app?.userEconomy?.chips,
+      starter: window.app?.userEconomy?.starterClaimed,
+      streak: window.app?.userEconomy?.dailyStreak,
+      deck: window.app?.userEconomy?.activeDeck
+    }));
+    assert(afterBonus.starter === true, 'Starter pack was not claimed');
+    assert(afterBonus.deck === 'deck_imperial', `Active deck ${afterBonus.deck}`);
+    assert(afterBonus.streak === 1, `Streak ${afterBonus.streak}`);
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11_daily_claimed.png') });
+    await page.click('#btn-close-daily');
     await delay(200);
 
     await page.click('#btn-quick-podkidnoy');
