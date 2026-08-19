@@ -153,7 +153,7 @@ class VKService {
       if (res && res.result === true) return true;
       return false;
     }
-    return false;
+    return true;
   }
 }
 

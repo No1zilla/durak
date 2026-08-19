@@ -8,7 +8,7 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const { RoomManager } = require('./gameEngine/RoomManager');
-const { EconomyService, SKINS_CATALOG } = require('./services/economyService');
+const { EconomyService, SKINS_CATALOG, VKPAY_SKUS, STARTER, QUESTS } = require('./services/economyService');
 const { resolvePlayerIdentity, cleanText, cleanImageUrl } = require('./security');
 
 const app = express();
@@ -42,8 +42,20 @@ app.use(express.static(path.join(__dirname, '../client'), {
 }));
 
 // Services
-const roomManager = new RoomManager(io);
 const economyService = new EconomyService();
+const roomManager = new RoomManager(io, {
+  onMatchStart() {
+    economyService.markMatchStarted();
+  },
+  onGameOver(room) {
+    economyService.settleMatch(room);
+    for (const player of room.game.players) {
+      if (player.socketId && !player.isBot) {
+        io.to(player.socketId).emit('economyUpdate', economyService.clientUser(player.id));
+      }
+    }
+  }
+});
 
 // REST API Endpoints
 app.get('/api/config', (req, res) => {
@@ -56,11 +68,15 @@ app.get('/api/config', (req, res) => {
 });
 
 app.get('/api/shop/catalog', (req, res) => {
-  res.json(SKINS_CATALOG);
+  res.json({ ...SKINS_CATALOG, packs: Object.values(VKPAY_SKUS), starter: STARTER, quests: QUESTS });
+});
+
+app.get('/api/metrics', (req, res) => {
+  res.json(economyService.getMetrics());
 });
 
 app.post('/api/vkpay/order', (req, res) => {
-  res.status(410).json({ success: false, error: 'Покупка ожидает серверного подтверждения VK Pay' });
+  res.status(401).json({ success: false, error: 'Заказ создаётся из авторизованной сессии' });
 });
 
 // Socket.io Real-time Event Handlers
@@ -94,7 +110,7 @@ io.on('connection', (socket) => {
   const emitAuth = () => {
     socket.emit('authSuccess', {
       player: currentPlayer,
-      userEconomy: economyService.getUser(currentPlayer.id)
+      userEconomy: economyService.touchSession(currentPlayer.id)
     });
     socket.emit('roomList', roomManager.getRoomList());
   };
@@ -212,7 +228,7 @@ io.on('connection', (socket) => {
     const room = roomForAction(roomId, { host: true, waiting: true });
     if (!room) return;
     if (room.game.players.length < 2) return reject('Нужно минимум два игрока');
-    room.game.start();
+    if (!roomManager.startMatch(room)) return reject('Не удалось начать игру');
     roomManager.broadcastState(roomId);
     io.emit('roomList', roomManager.getRoomList());
     roomManager.handleBotTurns(roomId);
@@ -306,20 +322,37 @@ io.on('connection', (socket) => {
   // Economy & Shop
   socket.on('claimDailyBonus', () => {
     if (!currentPlayer) return;
-    const res = economyService.claimDailyReward(currentPlayer.id);
-    socket.emit('dailyBonusResult', res);
+    socket.emit('dailyBonusResult', economyService.claimDailyReward(currentPlayer.id));
+  });
+
+  socket.on('claimRewarded', () => {
+    if (!currentPlayer) return;
+    socket.emit('rewardedResult', economyService.claimRewardedAd(currentPlayer.id));
+  });
+
+  socket.on('claimStarter', () => {
+    if (!currentPlayer) return;
+    socket.emit('starterResult', economyService.claimStarter(currentPlayer.id));
+  });
+
+  socket.on('createPayOrder', ({ sku } = {}) => {
+    if (!currentPlayer) return;
+    socket.emit('payOrderResult', economyService.createPayOrder(currentPlayer.id, sku));
+  });
+
+  socket.on('claimQuest', ({ questId } = {}) => {
+    if (!currentPlayer) return;
+    socket.emit('questResult', economyService.claimQuest(currentPlayer.id, questId));
   });
 
   socket.on('buySkin', ({ category, skinId, useCurrency } = {}) => {
     if (!currentPlayer) return;
-    const res = economyService.buySkin(currentPlayer.id, category, skinId, useCurrency);
-    socket.emit('buySkinResult', res);
+    socket.emit('buySkinResult', economyService.buySkin(currentPlayer.id, category, skinId, useCurrency));
   });
 
   socket.on('equipSkin', ({ category, skinId } = {}) => {
     if (!currentPlayer) return;
-    const res = economyService.equipSkin(currentPlayer.id, category, skinId);
-    socket.emit('equipSkinResult', res);
+    socket.emit('equipSkinResult', economyService.equipSkin(currentPlayer.id, category, skinId));
   });
 
   socket.on('disconnect', () => {
