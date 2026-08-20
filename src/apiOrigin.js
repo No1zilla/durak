@@ -1,6 +1,8 @@
 /**
  * Front on GitHub Pages, API on Railway (or same origin when Express serves the client).
  */
+export const DEFAULT_PAGES_API = 'https://durak-production-3b7a.up.railway.app';
+
 export function resolveApiOrigin({ hostname, search, configured } = {}) {
   const params = new URLSearchParams(search || '');
   const fromQuery = (params.get('api') || '').trim();
@@ -10,7 +12,7 @@ export function resolveApiOrigin({ hostname, search, configured } = {}) {
   if (fromConfig) return stripSlash(fromConfig);
 
   const host = hostname || '';
-  if (host.endsWith('github.io')) return '';
+  if (host.endsWith('github.io')) return DEFAULT_PAGES_API;
   return '';
 }
 
