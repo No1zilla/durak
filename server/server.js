@@ -13,13 +13,29 @@ const { verifyVkLaunchParams, cleanText, cleanImageUrl } = require('./security')
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: true, methods: ['GET', 'POST'] }
+});
 
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
 const BUILD_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'dev';
 
 // Middlewares
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders(res, filePath) {
