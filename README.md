@@ -44,22 +44,28 @@
 ```bash
 npm start
 ```
-Сервер запустится на `http://localhost:3000`.
+Сервер поднимет **и фронт, и API** на `http://localhost:3000`. Для разработки этого достаточно.
 
 ---
 
-## ☁️ Деплой на Railway за 1 минуту
+## Фронт и API (как в игре на GitHub Pages)
 
-1. В личном кабинете [Railway.app](https://railway.app) нажмите **«New Project» -> «Deploy from GitHub repo»**.
-2. Выберите репозиторий с проектом.
-3. Railway автоматически распознает `Dockerfile` и `railway.json` и запустит контейнер.
-4. В разделе **Settings -> Generate Domain** скопируйте предоставленный HTTPS-URL.
+Другая игра открывается из Pages, потому что это статика. Этот дурак — нет: комнаты, боты и фишки живут в Socket.IO. Pages может отдать **только клиент**. Партии крутятся на API (Railway).
+
+| Что | Где | URL в VK |
+|---|---|---|
+| Фронт (HTML, 3D, CSS) | **GitHub Pages** | **его** ставите в кабинете мини-приложения |
+| API (сокеты, экономика) | **Railway** | в кабинет VK **не** ставите; его пишет секрет `DURAK_API_ORIGIN` |
+
+1. Railway: Deploy from GitHub, **Generate Domain**, скопировать `https://….up.railway.app`.
+2. GitHub → Settings → Secrets → `DURAK_API_ORIGIN` = этот HTTPS (без слэша в конце).
+3. Settings → Pages → Source: **GitHub Actions**. После пуша в `main` фронт будет на `https://no1zilla.github.io/durak/`.
+4. VK → `54720415` → URL приложения = **Pages**, не Railway.
+5. Если API на другом домене, в Railway можно добавить `FRONTEND_ORIGINS=https://no1zilla.github.io` (этот origin и так разрешён).
+
+Пока секрета нет, Pages покажет «нет адреса API». Временно можно открыть  
+`https://no1zilla.github.io/durak/?api=https://ВАШ.up.railway.app`.
+
+Проверка API: `https://ВАШ.up.railway.app/api/health`.
 
 ---
-
-## 🔗 Подключение к VK Mini Apps (App ID `54720415`)
-
-1. Откройте консоль разработчика [vk.com/apps?act=manage](https://vk.com/apps?act=manage) и выберите приложение **54720415**.
-2. В разделе **Настройки**:
-   - **URL для Web / Мобильных**: укажите URL вашего сервиса на Railway.
-3. Готово! Игра будет открываться в VK на ПК, iOS и Android.

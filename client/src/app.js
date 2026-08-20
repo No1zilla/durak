@@ -9,6 +9,7 @@ import { Scene3D } from './scene3d.js';
 import { CardRenderer3D } from './cardRenderer3d.js';
 import { ThrowItemsEngine } from './items3d.js';
 import { generateStoryImage } from './storyShare.js';
+import { apiOrigin, apiUrl, needsRemoteApi, socketUrl } from './apiOrigin.js';
 
 class DurakApp {
   constructor() {
@@ -43,11 +44,15 @@ class DurakApp {
       this.throwEngine = new ThrowItemsEngine(this.scene3D);
       this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
 
+      if (needsRemoteApi(window.location.hostname) && !apiOrigin()) {
+        window.__durakBoot?.fail('Фронт на GitHub Pages, но нет адреса API. Задайте DURAK_API_ORIGIN.');
+        return;
+      }
+
       this.initSocket();
       this.bindUIEvents();
       this.fetchShopCatalog();
       this.startHUDPositionLoop();
-      window.__durakBoot?.hide();
     } catch (error) {
       console.error(error);
       window.__durakBoot?.fail('Ошибка запуска. Обновите страницу.');
@@ -89,7 +94,7 @@ class DurakApp {
   }
 
   initSocket() {
-    this.socket = io();
+    this.socket = io(socketUrl(), { transports: ['websocket', 'polling'] });
 
     this.socket.on('connect', () => {
       console.log('Connected to Game Server. Authenticating...');
@@ -103,11 +108,16 @@ class DurakApp {
 
     this.socket.on('connect_error', () => {
       this.showToast('Нет связи с сервером');
+      const boot = document.getElementById('boot-screen');
+      if (boot && !boot.classList.contains('hidden')) {
+        window.__durakBoot?.fail('Нет связи с API. Проверьте Railway и DURAK_API_ORIGIN.');
+      }
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
       this.player = { ...this.player, ...player, rawId: this.player.rawId };
       this.applyEconomy(userEconomy);
+      window.__durakBoot?.hide();
     });
 
     this.socket.on('roomList', (rooms) => this.renderRoomList(rooms));
@@ -765,7 +775,7 @@ class DurakApp {
 
   async fetchShopCatalog() {
     try {
-      const res = await fetch('/api/shop/catalog');
+      const res = await fetch(apiUrl('/api/shop/catalog'));
       this.shopCatalog = await res.json();
     } catch (e) {
       console.warn('Could not fetch shop catalog:', e);

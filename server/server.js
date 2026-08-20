@@ -10,10 +10,16 @@ const { Server } = require('socket.io');
 const { RoomManager } = require('./gameEngine/RoomManager');
 const { EconomyService, SKINS_CATALOG, VKPAY_SKUS, STARTER, QUESTS } = require('./services/economyService');
 const { resolvePlayerIdentity, cleanText, cleanImageUrl } = require('./security');
+const { corsMiddleware, originAllowed } = require('./cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => callback(null, originAllowed(origin)),
+    methods: ['GET', 'POST']
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
@@ -23,6 +29,7 @@ const DISCONNECT_GRACE_MS = 10000;
 const pendingLeaves = new Map();
 
 // Middlewares
+app.use(corsMiddleware);
 app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -58,6 +65,10 @@ const roomManager = new RoomManager(io, {
 });
 
 // REST API Endpoints
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, buildSha: BUILD_SHA });
+});
+
 app.get('/api/config', (req, res) => {
   res.json({
     vkAppId: VK_APP_ID,
