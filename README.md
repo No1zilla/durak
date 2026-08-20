@@ -57,14 +57,22 @@ npm start
 | Фронт (HTML, 3D, CSS) | **GitHub Pages** | **его** ставите в кабинете мини-приложения |
 | API (сокеты, экономика) | **Railway** | в кабинет VK **не** ставите; его пишет секрет `DURAK_API_ORIGIN` |
 
+Пока в репозитории **не включён GitHub Pages**, адрес `https://no1zilla.github.io/durak/` будет 404 — даже если файлы уже лежат в ветке `gh-pages`. Включить может только владелец репо (у агента нет права `pages: write`):
+
+1. Открой [Settings → Pages](https://github.com/No1zilla/durak/settings/pages)
+2. **Source:** Deploy from a branch
+3. **Branch:** `gh-pages` → `/ (root)` → Save
+
+Через одну-две минуты вместо 404 откроется лобби. Без Railway оно напишет, что нет адреса API — это нормально.
+
+Дальше API:
+
 1. Railway: Deploy from GitHub, **Generate Domain**, скопировать `https://….up.railway.app`.
 2. GitHub → Settings → Secrets → `DURAK_API_ORIGIN` = этот HTTPS (без слэша в конце).
-3. Settings → Pages → Source: **GitHub Actions**. После пуша в `main` фронт будет на `https://no1zilla.github.io/durak/`.
-4. VK → `54720415` → URL приложения = **Pages**, не Railway.
-5. Если API на другом домене, в Railway можно добавить `FRONTEND_ORIGINS=https://no1zilla.github.io` (этот origin и так разрешён).
+3. VK → `54720415` → URL приложения = `https://no1zilla.github.io/durak/`
+4. Временно без секрета: `https://no1zilla.github.io/durak/?api=https://ВАШ.up.railway.app`
 
-Пока секрета нет, Pages покажет «нет адреса API». Временно можно открыть  
-`https://no1zilla.github.io/durak/?api=https://ВАШ.up.railway.app`.
+Проверка API: `https://ВАШ.up.railway.app/api/health`.
 
 Проверка API: `https://ВАШ.up.railway.app/api/health`.
 
