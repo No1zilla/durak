@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="chipRed" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="70%" stop-color="#b91c1c" />
+      <stop offset="100%" stop-color="#7f1d1d" />
+    </radialGradient>
+    <linearGradient id="chipGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#92400e" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Rim with Inset Stripes -->
+  <circle cx="128" cy="128" r="120" fill="url(#chipRed)" stroke="#fff" stroke-width="4" />
+  
+  <!-- 6 Edge Stripes (White) -->
+  <g stroke="#fff" stroke-width="12" stroke-linecap="round">
+    <line x1="128" y1="12" x2="128" y2="36" />
+    <line x1="128" y1="220" x2="128" y2="244" />
+    <line x1="26" y1="70" x2="48" y2="82" />
+    <line x1="208" y1="174" x2="230" y2="186" />
+    <line x1="26" y1="186" x2="48" y2="174" />
+    <line x1="208" y1="82" x2="230" y2="70" />
+  </g>
+
+  <!-- Inner Gold Ring -->
+  <circle cx="128" cy="128" r="85" fill="#0f172a" stroke="url(#chipGold)" stroke-width="6" />
+  <circle cx="128" cy="128" r="72" fill="none" stroke="url(#chipGold)" stroke-width="2" stroke-dasharray="6 6" />
+
+  <!-- Center Text / Value -->
+  <text x="128" y="138" fill="url(#chipGold)" font-family="Outfit, sans-serif" font-weight="800" font-size="34" text-anchor="middle">500</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 716" width="512" height="716">
+  <defs>
+    <radialGradient id="cardBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#142c4b" />
+      <stop offset="70%" stop-color="#0a1829" />
+      <stop offset="100%" stop-color="#050c14" />
+    </radialGradient>
+    <linearGradient id="cardGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="40%" stop-color="#d4af37" />
+      <stop offset="80%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+    <pattern id="cardLattice" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 0,16 L 16,0 L 32,16 L 16,32 Z" fill="none" stroke="url(#cardGold)" stroke-width="1.5" opacity="0.35" />
+      <circle cx="16" cy="16" r="3" fill="url(#cardGold)" opacity="0.5" />
+    </pattern>
+  </defs>
+
+  <!-- Card Base -->
+  <rect width="512" height="716" rx="28" fill="#f8fafc" />
+  <rect x="12" y="12" width="488" height="692" rx="20" fill="url(#cardBg)" />
+  <rect x="24" y="24" width="464" height="668" rx="14" fill="url(#cardLattice)" />
+
+  <!-- Outer Double Gold Inlay -->
+  <rect x="24" y="24" width="464" height="668" rx="14" fill="none" stroke="url(#cardGold)" stroke-width="4" />
+  <rect x="34" y="34" width="444" height="648" rx="10" fill="none" stroke="url(#cardGold)" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.7" />
+
+  <!-- Center Ornate Medallion -->
+  <circle cx="256" cy="358" r="90" fill="#0a1829" stroke="url(#cardGold)" stroke-width="4" />
+  <circle cx="256" cy="358" r="76" fill="none" stroke="url(#cardGold)" stroke-width="1.5" stroke-dasharray="4 4" />
+
+  <!-- Center Russian Eagle / Crown Emblem -->
+  <g fill="url(#cardGold)" stroke="none">
+    <path d="M 256,295 L 268,325 L 300,325 L 274,345 L 284,375 L 256,355 L 228,375 L 238,345 L 212,325 L 244,325 Z" />
+    <circle cx="256" cy="405" r="14" />
+    <path d="M 240,405 C 240,390 272,390 272,405 C 272,425 240,425 240,405 Z" />
+  </g>
+</svg>

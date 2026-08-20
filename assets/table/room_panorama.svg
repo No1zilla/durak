@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 1024" width="2048" height="1024">
+  <defs>
+    <!-- Room Ambient Gradient -->
+    <linearGradient id="roomBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#04060a" />
+      <stop offset="40%" stop-color="#0a0f18" />
+      <stop offset="80%" stop-color="#120c09" />
+      <stop offset="100%" stop-color="#050302" />
+    </linearGradient>
+
+    <!-- Warm Chandelier Glow -->
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(255, 220, 140, 0.9)" />
+      <stop offset="30%" stop-color="rgba(245, 170, 70, 0.4)" />
+      <stop offset="70%" stop-color="rgba(200, 100, 30, 0.1)" />
+      <stop offset="100%" stop-color="transparent" />
+    </radialGradient>
+
+    <!-- Wood Panel Fill -->
+    <linearGradient id="woodPanel" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#180e08" />
+      <stop offset="50%" stop-color="#2a160d" />
+      <stop offset="100%" stop-color="#150a06" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="2048" height="1024" fill="url(#roomBg)" />
+
+  <!-- Repeated Luxury Wood Wall Columns & Sconces -->
+  <g>
+    <!-- Column 1 -->
+    <rect x="80" y="100" width="280" height="824" fill="url(#woodPanel)" rx="8" stroke="rgba(212,175,55,0.25)" stroke-width="3" />
+    <circle cx="220" cy="380" r="160" fill="url(#lampGlow)" />
+    <rect x="200" y="360" width="40" height="60" fill="#d4af37" rx="4" opacity="0.8" />
+
+    <!-- Column 2 -->
+    <rect x="440" y="100" width="280" height="824" fill="url(#woodPanel)" rx="8" stroke="rgba(212,175,55,0.25)" stroke-width="3" />
+    <circle cx="580" cy="380" r="160" fill="url(#lampGlow)" />
+    <rect x="560" y="360" width="40" height="60" fill="#d4af37" rx="4" opacity="0.8" />
+
+    <!-- Column 3 (Center) -->
+    <rect x="800" y="100" width="448" height="824" fill="url(#woodPanel)" rx="8" stroke="rgba(212,175,55,0.35)" stroke-width="4" />
+    <circle cx="1024" cy="320" r="280" fill="url(#lampGlow)" />
+    <!-- Giant Crystal Chandelier Silhouette -->
+    <polygon points="1024,200 960,300 1088,300" fill="rgba(255,235,180,0.9)" />
+    <circle cx="1024" cy="310" r="16" fill="#fff" />
+    <circle cx="980" cy="310" r="10" fill="#fff" />
+    <circle cx="1068" cy="310" r="10" fill="#fff" />
+
+    <!-- Column 4 -->
+    <rect x="1328" y="100" width="280" height="824" fill="url(#woodPanel)" rx="8" stroke="rgba(212,175,55,0.25)" stroke-width="3" />
+    <circle cx="1468" cy="380" r="160" fill="url(#lampGlow)" />
+    <rect x="1448" y="360" width="40" height="60" fill="#d4af37" rx="4" opacity="0.8" />
+
+    <!-- Column 5 -->
+    <rect x="1688" y="100" width="280" height="824" fill="url(#woodPanel)" rx="8" stroke="rgba(212,175,55,0.25)" stroke-width="3" />
+    <circle cx="1828" cy="380" r="160" fill="url(#lampGlow)" />
+    <rect x="1808" y="360" width="40" height="60" fill="#d4af37" rx="4" opacity="0.8" />
+  </g>
+
+  <!-- Golden Trim Molding at Ceiling & Floor -->
+  <rect x="0" y="80" width="2048" height="16" fill="#d4af37" opacity="0.4" />
+  <rect x="0" y="920" width="2048" height="24" fill="#24120a" stroke="rgba(212,175,55,0.3)" />
+</svg>
