@@ -102,6 +102,30 @@ class RoomManager {
     return { success: true, room };
   }
 
+  findRoomByPlayerId(playerId) {
+    const mapped = this.playerRooms.get(playerId);
+    if (mapped && this.rooms.has(mapped)) return this.rooms.get(mapped);
+    for (const room of this.rooms.values()) {
+      if (room.game.players.some(player => player.id === playerId)) return room;
+    }
+    return null;
+  }
+
+  rebindPlayer(playerId, socketId) {
+    const room = this.findRoomByPlayerId(playerId);
+    if (!room) return null;
+    const player = room.game.players.find(entry => entry.id === playerId);
+    if (!player) return null;
+    if (player.socketId && player.socketId !== socketId) {
+      this.playerRooms.delete(player.socketId);
+    }
+    player.socketId = socketId;
+    player.isBot = false;
+    this.playerRooms.set(playerId, room.id);
+    this.playerRooms.set(socketId, room.id);
+    return room;
+  }
+
   leaveRoom(playerId, socketId) {
     const roomId = this.playerRooms.get(playerId) || this.playerRooms.get(socketId);
     if (!roomId) return;

@@ -3,7 +3,7 @@
  */
 /* global io */
 
-import { vk, VK_APP_ID } from './vkBridge.js';
+import { vk, getLaunchParamsString } from './vkBridge.js';
 import { sounds } from './audio.js';
 import { Scene3D } from './scene3d.js';
 import { CardRenderer3D } from './cardRenderer3d.js';
@@ -19,6 +19,7 @@ class DurakApp {
     this.gameState = null;
     this.shopCatalog = null;
     this.targetThrowPlayerId = null;
+    this.isHost = false;
 
     // Sub-Engines
     this.scene3D = null;
@@ -29,50 +30,48 @@ class DurakApp {
   }
 
   async init() {
-    console.log('🚀 Initializing Durak Online 3D...');
+    console.log('Initializing Durak Online 3D...');
+    try {
+      await vk.init();
+      this.player = await vk.getUserInfo();
+      this.updateHeaderProfile();
 
-    // 1. Initialize VK Bridge
-    await vk.init();
-    this.player = await vk.getUserInfo();
-    this.updateHeaderProfile();
+      const container = document.getElementById('canvas-container');
+      this.scene3D = new Scene3D(container);
+      document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
+      this.cardRenderer = new CardRenderer3D(this.scene3D);
+      this.throwEngine = new ThrowItemsEngine(this.scene3D);
+      this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
 
-    // 2. Initialize 3D Engine
-    const container = document.getElementById('canvas-container');
-    this.scene3D = new Scene3D(container);
-    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
-    this.cardRenderer = new CardRenderer3D(this.scene3D);
-    this.throwEngine = new ThrowItemsEngine(this.scene3D);
-
-    // 3. Setup Card Play Interaction
-    this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
-
-    // 4. Connect Socket.IO Server
-    this.initSocket();
-
-    // 5. Setup UI Event Listeners
-    this.bindUIEvents();
-
-    // 6. Fetch Shop Catalog
-    this.fetchShopCatalog();
-
-    // Continuous seat badge positioning loop
-    this.startHUDPositionLoop();
+      this.initSocket();
+      this.bindUIEvents();
+      this.fetchShopCatalog();
+      this.startHUDPositionLoop();
+      window.__durakBoot?.hide();
+    } catch (error) {
+      console.error(error);
+      window.__durakBoot?.fail('Ошибка запуска. Обновите страницу.');
+    }
   }
 
   startHUDPositionLoop() {
     const update = () => {
       if (this.gameState && this.currentRoomId) {
         this.updatePlayerSeatPositions(this.gameState);
+        this._hudRaf = requestAnimationFrame(update);
+      } else {
+        this._hudRaf = null;
       }
-      requestAnimationFrame(update);
     };
-    requestAnimationFrame(update);
+    if (!this._hudRaf) this._hudRaf = requestAnimationFrame(update);
   }
 
   updateHeaderProfile() {
     if (!this.player) return;
     document.getElementById('user-name').textContent = this.player.name;
-    document.getElementById('user-avatar').src = this.player.avatar;
+    if (this.player.avatar) {
+      document.getElementById('user-avatar').src = this.player.avatar;
+    }
     if (this.userEconomy) {
       document.getElementById('user-chips').textContent = Number(this.userEconomy.chips).toLocaleString();
       document.getElementById('user-gold').textContent = Number(this.userEconomy.gold).toLocaleString();
@@ -83,13 +82,17 @@ class DurakApp {
     this.socket = io();
 
     this.socket.on('connect', () => {
-      console.log('⚡ Connected to Game Server. Authenticating...');
+      console.log('Connected to Game Server. Authenticating...');
       this.socket.emit('auth', {
         id: this.player.id,
         name: this.player.name,
         avatar: this.player.avatar,
-        launchParams: new URLSearchParams(window.location.search).has('sign') ? window.location.search : ''
+        launchParams: getLaunchParamsString()
       });
+    });
+
+    this.socket.on('connect_error', () => {
+      this.showToast('Нет связи с сервером');
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
@@ -108,6 +111,7 @@ class DurakApp {
 
     this.socket.on('joinedRoom', ({ roomId, isHost }) => {
       this.currentRoomId = roomId;
+      this.isHost = !!isHost;
       this.switchView('game-hud');
       this.showToast('Вы вошли за стол');
       vk.taptic('medium');
@@ -116,6 +120,7 @@ class DurakApp {
     this.socket.on('leftRoom', () => {
       this.currentRoomId = null;
       this.gameState = null;
+      this.isHost = false;
       this._seatSignature = null;
       this.cardRenderer.clear();
       this.renderFallbackCards([], []);
@@ -138,11 +143,37 @@ class DurakApp {
       if (res.success) {
         this.userEconomy = res.user;
         this.updateHeaderProfile();
-        this.showToast(`🎁 Получено +${res.reward.chips} фишек и +${res.reward.gold} золота!`);
+        this.showToast(`Получено +${res.reward.chips} фишек и +${res.reward.gold} золота`);
         sounds.playChipsClink();
         vk.taptic('medium');
       } else {
         this.showToast(res.error);
+      }
+    });
+
+    this.socket.on('buySkinResult', (res) => {
+      if (res?.success) {
+        this.userEconomy = res.user;
+        this.updateHeaderProfile();
+        if (res.user.activeDeck) this.cardRenderer.setDeckSkin(res.user.activeDeck);
+        if (res.user.activeTable) this.applyTableSkin(res.user.activeTable);
+        const tab = document.querySelector('.shop-tab.active')?.dataset.tab;
+        if (tab) this.renderShopTab(tab);
+        this.showToast('Скин куплен');
+      } else {
+        this.showToast(res?.error || 'Не удалось купить');
+      }
+    });
+
+    this.socket.on('equipSkinResult', (res) => {
+      if (res?.success) {
+        this.userEconomy = res.user;
+        if (res.user.activeDeck) this.cardRenderer.setDeckSkin(res.user.activeDeck);
+        if (res.user.activeTable) this.applyTableSkin(res.user.activeTable);
+        const tab = document.querySelector('.shop-tab.active')?.dataset.tab;
+        if (tab) this.renderShopTab(tab);
+      } else {
+        this.showToast(res?.error || 'Не удалось надеть скин');
       }
     });
   }
@@ -150,6 +181,7 @@ class DurakApp {
   onGameStateUpdated(state) {
     if (!this.currentRoomId || state.id !== this.currentRoomId) return;
     this.gameState = state;
+    this.startHUDPositionLoop();
     const isLocalPlayerInGame = state.players.some(p => p.id === this.player.id);
     if (!isLocalPlayerInGame) return;
 
@@ -223,7 +255,7 @@ class DurakApp {
 
       badge.innerHTML = `
         <div class="seat-avatar-ring">
-          <img src="${p.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'}" alt="${p.name}">
+          <img src="${p.avatar || 'assets/ui/chips.svg'}" alt="${p.name}">
           <span class="seat-card-count">${p.cardsCount || 0}</span>
         </div>
         <div class="seat-name-tag">${p.name} ${isAttacker ? '⚔️' : isDefender ? '🛡️' : ''}</div>
@@ -286,6 +318,12 @@ class DurakApp {
   }
 
   updateTurnControls(state) {
+    const waiting = state.state === 'WAITING';
+    const addBotBtn = document.getElementById('btn-add-bot');
+    const startBtn = document.getElementById('btn-start-game');
+    if (addBotBtn) addBotBtn.hidden = !(waiting && this.isHost);
+    if (startBtn) startBtn.hidden = !(waiting && this.isHost && state.players.length >= 2);
+
     const isAttacker = state.attackerId === this.player.id;
     const isDefender = state.defenderId === this.player.id;
     const isTransferable = state.mode === 'perevodnoy';
@@ -296,11 +334,17 @@ class DurakApp {
     const btnPass = document.getElementById('btn-action-pass');
     const promptBubble = document.getElementById('action-prompt');
 
-    // Default disable all
     btnTransfer?.classList.add('disabled');
     btnDefend?.classList.add('disabled');
     btnTake?.classList.add('disabled');
     btnPass?.classList.add('disabled');
+
+    if (waiting) {
+      promptBubble.textContent = this.isHost
+        ? 'Добавьте бота или нажмите Старт'
+        : 'Ожидание начала партии';
+      return;
+    }
 
     if (isDefender) {
       promptBubble.textContent = '🛡️ Вы отбиваетесь! Выберите карту или заберите';
@@ -402,7 +446,9 @@ class DurakApp {
     }
 
     document.getElementById('vic-player-name').textContent = this.player.name;
-    document.getElementById('vic-avatar').src = this.player.avatar;
+    if (this.player.avatar) {
+      document.getElementById('vic-avatar').src = this.player.avatar;
+    }
 
     document.getElementById('modal-victory').classList.add('active');
   }
@@ -516,8 +562,12 @@ class DurakApp {
     document.getElementById('btn-add-bot')?.addEventListener('click', () => {
       if (this.currentRoomId) {
         this.socket.emit('addBot', { roomId: this.currentRoomId });
-        this.showToast('Бот добавлен за стол 🤖');
+        this.showToast('Бот добавлен за стол');
       }
+    });
+
+    document.getElementById('btn-start-game')?.addEventListener('click', () => {
+      if (this.currentRoomId) this.socket.emit('startGame', { roomId: this.currentRoomId });
     });
 
     document.getElementById('btn-sound')?.addEventListener('click', () => {
@@ -572,11 +622,13 @@ class DurakApp {
         matchTime: '03:45',
         mode: this.gameState ? this.gameState.mode : 'Подкидной'
       });
-      await vk.shareToStory(dataUrl);
+      const res = await vk.shareToStory(dataUrl);
+      if (res?.skipped) this.showToast('Публикация доступна внутри VK');
     });
 
     document.getElementById('btn-share-vk-wall').addEventListener('click', async () => {
-      await vk.postToWall('Победа в Дурак Онлайн 3D! 🃏🔥');
+      const res = await vk.postToWall('Победа в Дурак Онлайн 3D!');
+      if (res?.skipped) this.showToast('Публикация доступна внутри VK');
     });
 
     document.getElementById('btn-victory-lobby').addEventListener('click', () => {

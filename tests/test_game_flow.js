@@ -76,9 +76,11 @@ async function runTests() {
     });
 
     const authData = await authResult;
+    const serverPlayerId = authData.player.id;
     assert(authData.player !== undefined, 'authSuccess received with player data');
     assert(authData.userEconomy !== undefined, 'authSuccess received with economy data');
     assert(authData.userEconomy.chips === 5000, `Starting chips: ${authData.userEconomy.chips} (expected 5000)`);
+    assert(!!serverPlayerId, `Server player id: ${serverPlayerId}`);
 
     // ── TEST 3: Room List ──
     console.log('3️⃣  Room List');
@@ -101,7 +103,7 @@ async function runTests() {
     assert(state1.trumpCard !== null, `Trump card exists: ${state1.trumpCard?.label}${state1.trumpCard?.symbol}`);
     assert(state1.deckRemaining > 0, `Deck remaining: ${state1.deckRemaining}`);
 
-    const myPlayer = state1.players.find(p => p.id === TEST_PLAYER_ID);
+    const myPlayer = state1.players.find(p => p.id === serverPlayerId);
     assert(myPlayer !== undefined, 'Local player found in state');
     assert(myPlayer.hand.length === 6, `Hand cards: ${myPlayer.hand.length} (expected 6)`);
     assert(myPlayer.cardsCount === 6, `Cards count: ${myPlayer.cardsCount}`);
@@ -117,7 +119,7 @@ async function runTests() {
     }
 
     // Verify opponents have hidden hands
-    const opponent = state1.players.find(p => p.id !== TEST_PLAYER_ID);
+    const opponent = state1.players.find(p => p.id !== serverPlayerId);
     assert(opponent.hand.length === 0, 'Opponent hand is hidden (anti-cheat)');
     assert(opponent.cardsCount >= 5, `Opponent cards count visible: ${opponent.cardsCount}`);
 
@@ -139,9 +141,9 @@ async function runTests() {
     const botStates = await collectStates();
     if (botStates) latestState = botStates;
     
-    const myLatest = latestState.players.find(p => p.id === TEST_PLAYER_ID);
-    const isNowAttacker = latestState.attackerId === TEST_PLAYER_ID;
-    const isNowDefender = latestState.defenderId === TEST_PLAYER_ID;
+    const myLatest = latestState.players.find(p => p.id === serverPlayerId);
+    const isNowAttacker = latestState.attackerId === serverPlayerId;
+    const isNowDefender = latestState.defenderId === serverPlayerId;
     console.log(`   Game state: ${latestState.state}, Table pairs: ${latestState.tablePairs.length}`);
     console.log(`   My role: ${isNowAttacker ? 'ATTACKER' : isNowDefender ? 'DEFENDER' : 'BYSTANDER'}`);
     console.log(`   My hand: ${myLatest.hand.map(c => c.label + c.symbol).join(', ')}`);
@@ -154,7 +156,7 @@ async function runTests() {
       const state2 = await waitFor('gameState');
       assert(state2.tablePairs.length >= 1, `Table has ${state2.tablePairs.length} pair(s) after attack`);
       
-      const myAfter = state2.players.find(p => p.id === TEST_PLAYER_ID);
+      const myAfter = state2.players.find(p => p.id === serverPlayerId);
       assert(myAfter.hand.length === myLatest.hand.length - 1, `Hand reduced: ${myLatest.hand.length} → ${myAfter.hand.length}`);
     } else if (isNowDefender && latestState.tablePairs.length > 0) {
       const undefended = latestState.tablePairs.find(p => !p.defense);

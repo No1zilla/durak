@@ -9,7 +9,7 @@ const { Server } = require('socket.io');
 
 const { RoomManager } = require('./gameEngine/RoomManager');
 const { EconomyService, SKINS_CATALOG } = require('./services/economyService');
-const { verifyVkLaunchParams, cleanText, cleanImageUrl } = require('./security');
+const { resolvePlayerIdentity, cleanText, cleanImageUrl } = require('./security');
 
 const app = express();
 const server = http.createServer(app);
@@ -20,6 +20,9 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
 const BUILD_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'dev';
+
+const DISCONNECT_GRACE_MS = 10000;
+const pendingLeaves = new Map();
 
 // Middlewares
 app.use((req, res, next) => {
@@ -37,6 +40,15 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "frame-ancestors 'self' https://vk.com https://*.vk.com https://vk.ru https://*.vk.ru https://*.vk.me"
+  );
+  next();
+});
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders(res, filePath) {
     res.setHeader('Cache-Control', /\.(?:html|js|css)$/.test(filePath)
@@ -95,34 +107,55 @@ io.on('connection', (socket) => {
     return room;
   };
 
+  const emitAuth = () => {
+    socket.emit('authSuccess', {
+      player: currentPlayer,
+      userEconomy: economyService.getUser(currentPlayer.id)
+    });
+    socket.emit('roomList', roomManager.getRoomList());
+  };
+
   socket.on('auth', (playerData) => {
     if (currentPlayer) return reject('Сессия уже авторизована');
-    const signedIdentity = verifyVkLaunchParams(playerData?.launchParams, process.env.VK_CLIENT_SECRET);
-    if (playerData?.launchParams && process.env.VK_CLIENT_SECRET && !signedIdentity) {
-      reject('Неверная подпись VK');
+    const identity = resolvePlayerIdentity({
+      launchParams: playerData?.launchParams,
+      clientId: playerData?.id,
+      secret: process.env.VK_CLIENT_SECRET,
+      nodeEnv: process.env.NODE_ENV,
+      socketId: socket.id
+    });
+    if (identity.error) {
+      reject(identity.error);
       return;
     }
 
-    const developmentId = process.env.NODE_ENV !== 'production' && playerData?.id;
-    const playerId = signedIdentity?.id || developmentId || `guest_${socket.id}`;
-    if (roomManager.playerRooms.has(playerId)) return reject('Игрок уже находится за столом');
+    const pending = pendingLeaves.get(identity.id);
+    if (pending) {
+      clearTimeout(pending);
+      pendingLeaves.delete(identity.id);
+    }
+
     currentPlayer = {
-      id: playerId,
+      id: identity.id,
       socketId: socket.id,
       name: cleanText(playerData?.name, 'Гость'),
       avatar: cleanImageUrl(playerData?.avatar, ''),
       chips: 5000,
       activeTable: 'table_emerald',
-      activeDeck: 'deck_classic'
+      activeDeck: 'deck_classic',
+      verified: !!identity.verified
     };
 
-    socket.emit('authSuccess', {
-      player: currentPlayer,
-      userEconomy: economyService.getUser(currentPlayer.id)
-    });
+    const existingRoom = roomManager.rebindPlayer(identity.id, socket.id);
+    if (existingRoom) {
+      socket.join(existingRoom.id);
+      emitAuth();
+      socket.emit('joinedRoom', { roomId: existingRoom.id, isHost: existingRoom.hostId === identity.id });
+      roomManager.broadcastState(existingRoom.id);
+      return;
+    }
 
-    // Send room list
-    socket.emit('roomList', roomManager.getRoomList());
+    emitAuth();
   });
 
   socket.on('getRooms', () => {
@@ -305,12 +338,17 @@ io.on('connection', (socket) => {
     socket.emit('equipSkinResult', res);
   });
 
-  // Disconnect
   socket.on('disconnect', () => {
-    if (currentPlayer) {
-      roomManager.leaveRoom(currentPlayer.id, socket.id);
+    if (!currentPlayer) return;
+    const playerId = currentPlayer.id;
+    const socketId = socket.id;
+    const previous = pendingLeaves.get(playerId);
+    if (previous) clearTimeout(previous);
+    pendingLeaves.set(playerId, setTimeout(() => {
+      pendingLeaves.delete(playerId);
+      roomManager.leaveRoom(playerId, socketId);
       io.emit('roomList', roomManager.getRoomList());
-    }
+    }, DISCONNECT_GRACE_MS));
   });
 });
 

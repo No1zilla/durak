@@ -57,8 +57,8 @@ export class CardRenderer3D {
 
     const materials = [edgeMat, edgeMat, topMat, bottomMat, edgeMat, edgeMat];
     const mesh = new THREE.Mesh(geo, materials);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = !!this.scene3D.quality?.shadows;
+    mesh.receiveShadow = !!this.scene3D.quality?.shadows;
     mesh.userData = { card, isFaceUp };
 
     return mesh;
