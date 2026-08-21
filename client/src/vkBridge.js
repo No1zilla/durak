@@ -217,13 +217,19 @@ class VKService {
     return null;
   }
 
+  async showOrderBox(item) {
+    if (!this.isVK) return { ok: false, skipped: true, status: 'unavailable' };
+    const res = await this.sendBridge('VKWebAppShowOrderBox', { type: 'item', item }, 120000);
+    if (!res) return { ok: false, skipped: false, status: 'fail' };
+    const status = res.status || '';
+    const ok = status === 'success' || status === 'charged';
+    return { ok, status, orderId: res.order_id || null };
+  }
+
   async showRewardedAd() {
-    if (this.isVK) {
-      const res = await this.sendBridge('VKWebAppShowNativeAds', { ad_format: 'reward' }, 10000);
-      if (res && res.result === true) return true;
-      return false;
-    }
-    return true;
+    if (!this.isVK) return false;
+    const res = await this.sendBridge('VKWebAppShowNativeAds', { ad_format: 'reward' }, 120000);
+    return Boolean(res && res.result === true);
   }
 }
 

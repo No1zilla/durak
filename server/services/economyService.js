@@ -1,10 +1,25 @@
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { JsonStore } = require('../store');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REWARDED_DAILY_CAP = 3;
+const REWARDED_COOLDOWN_MS = 8000;
+const REWARDED_CHIPS = 400;
 const DEFAULT_FILE = path.join(__dirname, '../../data/state.json');
+
+function resolveEconomyFile(env = process.env) {
+  if (env.ECONOMY_FILE) return env.ECONOMY_FILE;
+  try {
+    if (fs.existsSync('/data') && fs.statSync('/data').isDirectory()) {
+      return path.join('/data', 'state.json');
+    }
+  } catch {
+    // fall through to repo data/
+  }
+  return DEFAULT_FILE;
+}
 
 const DAILY_STREAK = [
   { chips: 1500, gold: 10 },
@@ -39,9 +54,10 @@ const SKINS_CATALOG = {
 };
 
 const VKPAY_SKUS = {
-  chips_10k: { id: 'chips_10k', name: '10,000 Фишек', priceRub: 99, chips: 10000, vipDays: 0 },
-  chips_50k_vip: { id: 'chips_50k_vip', name: '50,000 Фишек + VIP', priceRub: 299, chips: 50000, vipDays: 30 },
-  chips_150k: { id: 'chips_150k', name: '150,000 Фишек (Хит)', priceRub: 699, chips: 150000, vipDays: 0 }
+  chips_3k: { id: 'chips_3k', name: '3 000 фишек', priceRub: 29, priceVotes: 5, chips: 3000, gold: 0, vipDays: 0 },
+  chips_10k: { id: 'chips_10k', name: '10 000 фишек', priceRub: 99, priceVotes: 15, chips: 10000, gold: 20, vipDays: 0 },
+  chips_50k_vip: { id: 'chips_50k_vip', name: '50 000 фишек + VIP', priceRub: 299, priceVotes: 43, chips: 50000, gold: 80, vipDays: 30 },
+  chips_150k: { id: 'chips_150k', name: '150 000 фишек (хит)', priceRub: 699, priceVotes: 100, chips: 150000, gold: 200, vipDays: 0 }
 };
 
 const STARTER = { id: 'starter_imperial', chips: 2500, gold: 20, deck: 'deck_imperial' };
@@ -61,7 +77,7 @@ function clone(value) {
 
 class EconomyService {
   constructor(options = {}) {
-    this.store = new JsonStore(options.filePath || process.env.ECONOMY_FILE || DEFAULT_FILE);
+    this.store = new JsonStore(options.filePath || resolveEconomyFile());
     this.now = options.now || (() => Date.now());
   }
 
@@ -91,6 +107,7 @@ class EconomyService {
         vipUntil: 0,
         rewardedDay: 0,
         rewardedCount: 0,
+        lastRewardedAt: 0,
         quests: this.emptyQuests(ts),
         winStreak: 0,
         totalWins: 0,
@@ -218,7 +235,10 @@ class EconomyService {
     return { success: true, reward: { ...reward, streak }, user: this.toClient(user) };
   }
 
-  claimRewardedAd(vkId) {
+  claimRewardedAd(vkId, { watched } = {}) {
+    if (watched !== true) {
+      return { success: false, error: 'Награда только после просмотра рекламы' };
+    }
     const user = this.getUser(vkId);
     const day = utcDay(this.now());
     if (user.rewardedDay !== day) {
@@ -228,11 +248,15 @@ class EconomyService {
     if (user.rewardedCount >= REWARDED_DAILY_CAP) {
       return { success: false, error: 'Лимит рекламы на сегодня исчерпан' };
     }
+    if (user.lastRewardedAt && this.now() - user.lastRewardedAt < REWARDED_COOLDOWN_MS) {
+      return { success: false, error: 'Подождите несколько секунд' };
+    }
     user.rewardedCount += 1;
+    user.lastRewardedAt = this.now();
     this.store.data.analytics.rewardedClaims += 1;
-    this.credit(vkId, 'chips', 400, 'rewarded', `rewarded:${vkId}:${day}:${user.rewardedCount}`);
+    this.credit(vkId, 'chips', REWARDED_CHIPS, 'rewarded', `rewarded:${vkId}:${day}:${user.rewardedCount}`);
     this.persist();
-    return { success: true, reward: { chips: 400 }, user: this.toClient(user) };
+    return { success: true, reward: { chips: REWARDED_CHIPS }, user: this.toClient(user) };
   }
 
   claimStarter(vkId) {
@@ -366,6 +390,120 @@ class EconomyService {
     return { success: true, order };
   }
 
+  nextAppOrderId() {
+    this.store.data.orderSeq = (this.store.data.orderSeq || 0) + 1;
+    return this.store.data.orderSeq;
+  }
+
+  findVkOrder(orderId, test) {
+    const vkOrderId = String(orderId);
+    const mode = test ? 'test' : 'live';
+    return this.store.data.orders.find((order) => order.vkOrderId === vkOrderId && order.mode === mode) || null;
+  }
+
+  fulfillVkOrder({ userId, orderId, skuId, test = false }) {
+    const sku = VKPAY_SKUS[skuId];
+    if (!sku) return { success: false, error: 'Неизвестный пакет' };
+    if (!/^\d+$/.test(String(userId))) return { success: false, error: 'Нет user_id' };
+    const vkId = `vk_${userId}`;
+    const mode = test ? 'test' : 'live';
+    const key = `vkpay:${mode}:${orderId}`;
+    const existing = this.findLedger(key);
+    if (existing) {
+      const order = this.findVkOrder(orderId, test);
+      return {
+        success: true,
+        duplicate: true,
+        appOrderId: order?.appOrderId || 0,
+        user: this.toClient(this.getUser(vkId)),
+        order
+      };
+    }
+
+    let order = this.findVkOrder(orderId, test);
+    if (!order) {
+      order = {
+        id: crypto.randomUUID(),
+        appOrderId: this.nextAppOrderId(),
+        vkOrderId: String(orderId),
+        userId: vkId,
+        sku: sku.id,
+        priceRub: sku.priceRub,
+        priceVotes: sku.priceVotes,
+        chips: sku.chips,
+        gold: sku.gold || 0,
+        vipDays: sku.vipDays || 0,
+        status: 'pending',
+        mode,
+        test: Boolean(test),
+        createdAt: this.now()
+      };
+      this.store.data.orders.push(order);
+    }
+
+    this.credit(vkId, 'chips', sku.chips, 'vkpay', `${key}:chips`, { silent: true, sku: sku.id, orderId: String(orderId) });
+    if (sku.gold) this.credit(vkId, 'gold', sku.gold, 'vkpay', `${key}:gold`, { silent: true, sku: sku.id });
+    const user = this.getUser(vkId);
+    if (sku.vipDays) {
+      const base = Math.max(this.now(), user.vipUntil || 0);
+      user.vipUntil = base + sku.vipDays * DAY_MS;
+    }
+    this.store.data.ledger.push({
+      id: crypto.randomUUID(),
+      userId: vkId,
+      type: 'vkpay_order',
+      currency: 'chips',
+      delta: 0,
+      balanceAfter: user.chips,
+      key,
+      createdAt: this.now(),
+      meta: { sku: sku.id, votes: sku.priceVotes }
+    });
+    order.status = 'paid';
+    order.paidAt = this.now();
+    this.store.data.analytics.payFulfilled += 1;
+    this.persist();
+    return {
+      success: true,
+      duplicate: false,
+      appOrderId: order.appOrderId,
+      user: this.toClient(user),
+      order
+    };
+  }
+
+  refundVkOrder({ userId, orderId, test = false }) {
+    const vkId = `vk_${userId}`;
+    const mode = test ? 'test' : 'live';
+    const fulfillKey = `vkpay:${mode}:${orderId}`;
+    const refundKey = `vkpay-refund:${mode}:${orderId}`;
+    const order = this.findVkOrder(orderId, test);
+    const existingRefund = this.findLedger(refundKey);
+    if (existingRefund) {
+      return { success: true, duplicate: true, appOrderId: order?.appOrderId || 0 };
+    }
+    if (!this.findLedger(fulfillKey) && !order) {
+      return { success: true, duplicate: false, appOrderId: 0 };
+    }
+    const sku = VKPAY_SKUS[order?.sku];
+    if (sku?.chips) this.credit(vkId, 'chips', -sku.chips, 'vkpay_refund', `${refundKey}:chips`, { silent: true });
+    if (sku?.gold) this.credit(vkId, 'gold', -sku.gold, 'vkpay_refund', `${refundKey}:gold`, { silent: true });
+    this.store.data.ledger.push({
+      id: crypto.randomUUID(),
+      userId: vkId,
+      type: 'vkpay_refund',
+      currency: 'chips',
+      delta: sku ? -sku.chips : 0,
+      balanceAfter: this.getUser(vkId).chips,
+      key: refundKey,
+      createdAt: this.now(),
+      meta: { orderId: String(orderId) }
+    });
+    if (order) order.status = 'refunded';
+    this.persist();
+    return { success: true, duplicate: false, appOrderId: order?.appOrderId || 0 };
+  }
+
   getMetrics() {
     const users = Object.values(this.store.data.users);
     const today = utcDay(this.now());
@@ -382,7 +520,8 @@ class EconomyService {
       shopPurchases: a.shopPurchases,
       rewardedClaims: a.rewardedClaims,
       payOrders: a.payOrders,
-      payConversion: users.length ? a.payOrders / users.length : 0,
+      payFulfilled: a.payFulfilled || 0,
+      payConversion: users.length ? (a.payFulfilled || 0) / users.length : 0,
       generatedAt: this.now()
     };
   }
@@ -395,5 +534,8 @@ module.exports = {
   STARTER,
   QUESTS,
   REWARDED_DAILY_CAP,
-  DAILY_STREAK
+  REWARDED_COOLDOWN_MS,
+  REWARDED_CHIPS,
+  DAILY_STREAK,
+  resolveEconomyFile
 };

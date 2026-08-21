@@ -269,7 +269,7 @@ button, input, select {
   border-radius: var(--radius-sm);
 }
 
-.currency-badge.chips { color: #f59e0b; }
+.currency-badge.chips { color: #f59e0b; cursor: pointer; }
 .currency-badge.gold { color: #eab308; }
 
 .header-actions {
@@ -811,6 +811,20 @@ input[type="range"] {
   margin-top: 8px;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+.shop-pay-note {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.shop-item-meta {
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+  margin: 4px 0 8px;
 }
 
 .btn-buy-skin {

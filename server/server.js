@@ -9,6 +9,7 @@ const { Server } = require('socket.io');
 
 const { RoomManager } = require('./gameEngine/RoomManager');
 const { EconomyService, SKINS_CATALOG, VKPAY_SKUS, STARTER, QUESTS } = require('./services/economyService');
+const { processVkNotification, publicPaymentsInfo } = require('./vkPayments');
 const { verifyVkLaunchParams, cleanText, cleanImageUrl } = require('./security');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders(res, filePath) {
@@ -69,14 +71,44 @@ const roomManager = new RoomManager(io, {
   }
 });
 
+const socketsByPlayer = new Map();
+
+function trackPlayerSocket(playerId, socket) {
+  let set = socketsByPlayer.get(playerId);
+  if (!set) {
+    set = new Set();
+    socketsByPlayer.set(playerId, set);
+  }
+  set.add(socket.id);
+}
+
+function untrackPlayerSocket(playerId, socketId) {
+  const set = socketsByPlayer.get(playerId);
+  if (!set) return;
+  set.delete(socketId);
+  if (!set.size) socketsByPlayer.delete(playerId);
+}
+
+function pushEconomy(playerId) {
+  const ids = socketsByPlayer.get(playerId);
+  if (!ids || !ids.size) return;
+  const payload = economyService.clientUser(playerId);
+  for (const socketId of ids) {
+    io.to(socketId).emit('economyUpdate', payload);
+  }
+}
+
 function publicBootInfo() {
+  const payments = publicPaymentsInfo();
   return {
     ok: true,
     vkAppId: VK_APP_ID,
     serverTime: Date.now(),
     version: '1.0.0',
     buildSha: BUILD_SHA,
-    publicOrigin: PUBLIC_ORIGIN
+    publicOrigin: PUBLIC_ORIGIN,
+    paymentsReady: payments.votesEnabled,
+    adsEnabled: true
   };
 }
 
@@ -90,7 +122,13 @@ app.get('/api/config', (req, res) => {
 });
 
 app.get('/api/shop/catalog', (req, res) => {
-  res.json({ ...SKINS_CATALOG, packs: Object.values(VKPAY_SKUS), starter: STARTER, quests: QUESTS });
+  res.json({
+    ...SKINS_CATALOG,
+    packs: Object.values(VKPAY_SKUS),
+    starter: STARTER,
+    quests: QUESTS,
+    payments: publicPaymentsInfo()
+  });
 });
 
 app.get('/api/metrics', (req, res) => {
@@ -99,6 +137,24 @@ app.get('/api/metrics', (req, res) => {
 
 app.post('/api/vkpay/order', (req, res) => {
   res.status(401).json({ success: false, error: 'Заказ создаётся из авторизованной сессии' });
+});
+
+app.get('/api/vkpay/notification', (req, res) => {
+  res.json({
+    ok: true,
+    path: '/api/vkpay/notification',
+    payments: publicPaymentsInfo(),
+    hint: 'VK шлёт сюда POST (get_item / order_status_change). В кабинете: приложение 54720415 → Платежи → адрес уведомлений.'
+  });
+});
+
+app.post('/api/vkpay/notification', (req, res) => {
+  const result = processVkNotification(req.body, economyService, {
+    appId: VK_APP_ID,
+    photoUrl: PUBLIC_ORIGIN ? `${PUBLIC_ORIGIN}/assets/ui/chips.svg` : ''
+  });
+  if (result.userId) pushEconomy(result.userId);
+  res.status(result.http).json(result.json);
 });
 
 // Socket.io Real-time Event Handlers
@@ -149,6 +205,8 @@ io.on('connection', (socket) => {
       activeTable: 'table_emerald',
       activeDeck: 'deck_classic'
     };
+
+    trackPlayerSocket(playerId, socket);
 
     socket.emit('authSuccess', {
       player: currentPlayer,
@@ -326,9 +384,9 @@ io.on('connection', (socket) => {
     socket.emit('dailyBonusResult', economyService.claimDailyReward(currentPlayer.id));
   });
 
-  socket.on('claimRewarded', () => {
+  socket.on('claimRewarded', ({ watched } = {}) => {
     if (!currentPlayer) return;
-    socket.emit('rewardedResult', economyService.claimRewardedAd(currentPlayer.id));
+    socket.emit('rewardedResult', economyService.claimRewardedAd(currentPlayer.id, { watched: watched === true }));
   });
 
   socket.on('claimStarter', () => {
@@ -356,9 +414,15 @@ io.on('connection', (socket) => {
     socket.emit('equipSkinResult', economyService.equipSkin(currentPlayer.id, category, skinId));
   });
 
+  socket.on('syncEconomy', () => {
+    if (!currentPlayer) return;
+    socket.emit('economyUpdate', economyService.clientUser(currentPlayer.id));
+  });
+
   // Disconnect
   socket.on('disconnect', () => {
     if (currentPlayer) {
+      untrackPlayerSocket(currentPlayer.id, socket.id);
       roomManager.leaveRoom(currentPlayer.id, socket.id);
       io.emit('roomList', roomManager.getRoomList());
     }

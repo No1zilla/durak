@@ -15,6 +15,11 @@ function makeService(nowValue) {
   return service;
 }
 
+test('ECONOMY_FILE env wins over the default json path', () => {
+  const { resolveEconomyFile } = require('../server/services/economyService');
+  assert.equal(resolveEconomyFile({ ECONOMY_FILE: '/data/state.json' }), '/data/state.json');
+});
+
 test('wallet and inventory survive reload', () => {
   const eco = makeService();
   eco.buySkin('u1', 'decks', 'deck_imperial', 'chips');
@@ -45,12 +50,27 @@ test('daily streak grows across days and resets after a skip', () => {
   assert.equal(afterSkip.reward.streak, 1);
 });
 
-test('rewarded ads stop after the daily cap', () => {
+test('rewarded ads require a watch, stop after the daily cap, and cool down', () => {
   const eco = makeService();
-  assert.equal(eco.claimRewardedAd('u4').success, true);
-  assert.equal(eco.claimRewardedAd('u4').success, true);
-  assert.equal(eco.claimRewardedAd('u4').success, true);
   assert.equal(eco.claimRewardedAd('u4').success, false);
+  assert.equal(eco.claimRewardedAd('u4', { watched: true }).success, true);
+  eco.shift(9000);
+  assert.equal(eco.claimRewardedAd('u4', { watched: true }).success, true);
+  eco.shift(9000);
+  assert.equal(eco.claimRewardedAd('u4', { watched: true }).success, true);
+  eco.shift(9000);
+  assert.equal(eco.claimRewardedAd('u4', { watched: true }).success, false);
+  assert.equal(eco.clientUser('u4').chips, 6200);
+  assert.equal(eco.clientUser('u4').rewardedLeft, 0);
+});
+
+test('rewarded ads reject a second claim inside the cooldown window', () => {
+  const eco = makeService();
+  assert.equal(eco.claimRewardedAd('u4b', { watched: true }).success, true);
+  const blocked = eco.claimRewardedAd('u4b', { watched: true });
+  assert.equal(blocked.success, false);
+  assert.match(blocked.error, /секунд/);
+  assert.equal(eco.clientUser('u4b').chips, 5400);
 });
 
 test('starter pack can be claimed once and equips imperial deck', () => {
@@ -68,6 +88,20 @@ test('VK Pay order is pending and does not grant chips', () => {
   assert.equal(order.success, true);
   assert.equal(order.order.status, 'pending');
   assert.equal(eco.clientUser('u6').chips, before);
+});
+
+test('VK votes webhook grants chips once and ignores a second fulfill', () => {
+  const eco = makeService();
+  const first = eco.fulfillVkOrder({ userId: '9001', orderId: '555', skuId: 'chips_10k' });
+  const second = eco.fulfillVkOrder({ userId: '9001', orderId: '555', skuId: 'chips_10k' });
+  assert.equal(first.success, true);
+  assert.equal(first.duplicate, false);
+  assert.equal(second.success, true);
+  assert.equal(second.duplicate, true);
+  assert.equal(second.appOrderId, first.appOrderId);
+  assert.equal(eco.clientUser('vk_9001').chips, 15000);
+  assert.equal(eco.clientUser('vk_9001').gold, 70);
+  assert.equal(eco.getMetrics().payFulfilled, 1);
 });
 
 test('quests pay only after completion', () => {

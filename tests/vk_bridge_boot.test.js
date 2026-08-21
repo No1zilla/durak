@@ -50,3 +50,11 @@ test('guest identity survives blocked third-party localStorage', async () => {
     delete globalThis.sessionStorage;
   }
 });
+
+test('rewarded ads and order box do not succeed outside VK', async () => {
+  const { vk } = await load();
+  assert.equal(await vk.showRewardedAd(), false);
+  const order = await vk.showOrderBox('chips_10k');
+  assert.equal(order.ok, false);
+  assert.equal(order.skipped, true);
+});

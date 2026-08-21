@@ -62,14 +62,16 @@ function postJson(url, payload) {
   });
 }
 
-function spawnServer(port, economyFile) {
+function spawnServer(port, extraEnv = {}) {
   return spawn(process.execPath, ['server/server.js'], {
     cwd: path.join(__dirname, '..'),
     env: {
       ...process.env,
       PORT: String(port),
       NODE_ENV: 'development',
-      ECONOMY_FILE: economyFile
+      VK_CLIENT_SECRET: '',
+      VK_PAYMENTS_SECRET: '',
+      ...extraEnv
     },
     stdio: 'ignore'
   });
@@ -106,7 +108,7 @@ test('catalog, metrics, pending VK Pay, and wallet survive a process restart', a
   const economyFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'durak-eco-api-')), 'state.json');
   const playerId = 'vk_persist_1';
 
-  let child = spawnServer(port, economyFile);
+  let child = spawnServer(port, { ECONOMY_FILE: economyFile });
   try {
     await waitForHttp(`${origin}/api/health`);
 
@@ -115,9 +117,24 @@ test('catalog, metrics, pending VK Pay, and wallet survive a process restart', a
     assert.ok(catalog.json.packs.some((pack) => pack.id === 'chips_10k'));
     assert.equal(catalog.json.starter.deck, 'deck_imperial');
     assert.ok(catalog.json.quests.some((quest) => quest.id === 'play_match'));
+    assert.equal(catalog.json.payments.adsEnabled, true);
+    assert.equal(catalog.json.payments.votesEnabled, false);
 
     const payPost = await postJson(`${origin}/api/vkpay/order`, { sku: 'chips_10k' });
     assert.equal(payPost.status, 401);
+
+    const webhook = await postJson(`${origin}/api/vkpay/notification`, {
+      notification_type: 'order_status_change',
+      app_id: '54720415',
+      user_id: '1',
+      order_id: '1',
+      item: 'chips_10k',
+      status: 'chargeable',
+      sig: 'deadbeef'
+    });
+    assert.equal(webhook.status, 200);
+    assert.equal(webhook.json.error.error_code, 1);
+    assert.match(webhook.json.error.error_msg, /VK_CLIENT_SECRET/);
 
     const first = await authAs(origin, playerId);
     assert.equal(first.auth.userEconomy.chips, 5000);
@@ -149,6 +166,18 @@ test('catalog, metrics, pending VK Pay, and wallet survive a process restart', a
     const quest = await questPending;
     assert.equal(quest.success, false);
 
+    const deniedAd = waitFor(first.socket, 'rewardedResult');
+    first.socket.emit('claimRewarded', {});
+    const denied = await deniedAd;
+    assert.equal(denied.success, false);
+
+    const adPending = waitFor(first.socket, 'rewardedResult');
+    first.socket.emit('claimRewarded', { watched: true });
+    const ad = await adPending;
+    assert.equal(ad.success, true);
+    assert.equal(ad.reward.chips, 400);
+    assert.equal(ad.user.chips, 9400);
+
     first.socket.disconnect();
 
     const metrics = await getJson(`${origin}/api/metrics`);
@@ -159,11 +188,11 @@ test('catalog, metrics, pending VK Pay, and wallet survive a process restart', a
     child.kill('SIGTERM');
   }
 
-  child = spawnServer(restartPort, economyFile);
+  child = spawnServer(restartPort, { ECONOMY_FILE: economyFile });
   try {
     await waitForHttp(`${restartOrigin}/api/health`);
     const second = await authAs(restartOrigin, playerId);
-    assert.equal(second.auth.userEconomy.chips, 9000);
+    assert.equal(second.auth.userEconomy.chips, 9400);
     assert.equal(second.auth.userEconomy.starterClaimed, true);
     assert.equal(second.auth.userEconomy.dailyAvailable, false);
     assert.ok(second.auth.userEconomy.ownedDecks.includes('deck_imperial'));

@@ -11,6 +11,8 @@ ENV PORT=3000
 ENV NODE_ENV=production
 ENV VK_APP_ID=54720415
 
+VOLUME ["/data"]
+
 EXPOSE 3000
 
 CMD ["node", "server/server.js"]

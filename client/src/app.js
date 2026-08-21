@@ -106,6 +106,10 @@ class DurakApp {
     if (user.activeTable) this.applyTableSkin(user.activeTable);
     if (user.activeDeck) this.cardRenderer?.setDeckSkin(user.activeDeck);
     this.renderDailyModal();
+    if (user.chips < 800 && !this._lowChipsHinted) {
+      this._lowChipsHinted = true;
+      this.showToast('Мало фишек — ежедневка, реклама или пакет в магазине');
+    }
   }
 
   applyVkProfile(user) {
@@ -251,7 +255,7 @@ class DurakApp {
         this.showToast(res?.error || 'Не удалось создать заказ');
         return;
       }
-      this.showToast('Заказ создан. Фишки придут после подтверждения VK Pay');
+      this.showToast('Заказ в очереди. Фишки только после уведомления VK');
     });
 
     this.socket.on('buySkinResult', (res) => {
@@ -696,17 +700,26 @@ class DurakApp {
     });
 
     document.getElementById('btn-claim-rewarded')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-claim-rewarded');
+      if (btn?.disabled) return;
+      if (!vk.isVK) {
+        this.showToast('Реклама работает внутри VK');
+        return;
+      }
       const watched = await vk.showRewardedAd();
       if (!watched) {
         this.showToast('Награда только после просмотра');
         return;
       }
-      this.socket.emit('claimRewarded');
+      this.socket.emit('claimRewarded', { watched: true });
     });
 
     document.getElementById('btn-shop').addEventListener('click', () => {
-      document.getElementById('modal-shop').classList.add('active');
-      this.renderShopTab('decks');
+      this.openShop('decks');
+    });
+
+    document.querySelector('.currency-badge.chips')?.addEventListener('click', () => {
+      this.openShop('currency');
     });
 
     document.getElementById('btn-close-shop').addEventListener('click', () => {
@@ -828,6 +841,23 @@ class DurakApp {
     });
   }
 
+  openShop(tab = 'decks') {
+    document.getElementById('modal-shop')?.classList.add('active');
+    document.querySelectorAll('.shop-tab').forEach((el) => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+    this.renderShopTab(tab);
+  }
+
+  async waitForPaidWallet(previousChips) {
+    for (let i = 0; i < 8; i += 1) {
+      this.socket.emit('syncEconomy');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if ((this.userEconomy?.chips || 0) > previousChips) return true;
+    }
+    return false;
+  }
+
   async fetchShopCatalog() {
     try {
       const res = await fetch(apiUrl('/api/shop/catalog'));
@@ -873,6 +903,16 @@ class DurakApp {
     else if (tab === 'tables') renderItems(this.shopCatalog.tables, 'tables', 'ownedTables', 'activeTable');
     else if (tab === 'frames') renderItems(this.shopCatalog.frames || [], 'frames', 'ownedFrames', 'activeFrame');
     else if (tab === 'currency') {
+      const payments = this.shopCatalog.payments || {};
+      const note = document.createElement('p');
+      note.className = 'shop-pay-note';
+      if (!payments.votesEnabled) {
+        note.textContent = 'Оплата не настроена. Фишки сейчас: ежедневка, задания и реклама в VK (до 3 роликов в день).';
+        container.appendChild(note);
+      } else {
+        note.textContent = 'Пакеты за голоса VK. Фишки начисляет сервер после уведомления VK, не клиент.';
+        container.appendChild(note);
+      }
       if (econ && !econ.starterClaimed) {
         const starter = document.createElement('div');
         starter.className = 'shop-item-card';
@@ -880,19 +920,51 @@ class DurakApp {
         starter.querySelector('button').addEventListener('click', () => this.socket.emit('claimStarter'));
         container.appendChild(starter);
       }
+      if (econ && (econ.rewardedLeft || 0) > 0) {
+        const adCard = document.createElement('div');
+        adCard.className = 'shop-item-card';
+        adCard.innerHTML = `<div class="shop-item-name">Реклама</div><button class="btn-glass" style="width:100%;">+400 фишек · осталось ${econ.rewardedLeft}</button>`;
+        adCard.querySelector('button').addEventListener('click', () => {
+          document.getElementById('modal-shop').classList.remove('active');
+          document.getElementById('modal-daily').classList.add('active');
+          this.renderDailyModal();
+        });
+        container.appendChild(adCard);
+      }
       (this.shopCatalog.packs || []).forEach(pack => {
         const card = document.createElement('div');
         card.className = 'shop-item-card';
+        const votes = pack.priceVotes || Math.ceil((pack.priceRub || 0) / 7);
+        const btnLabel = payments.votesEnabled
+          ? `${votes} голосов · ${pack.priceRub} ₽`
+          : 'Оплата не настроена';
         card.innerHTML = `
           <div class="shop-item-name">${pack.name}</div>
-          <button class="btn-hero vk-blue" style="width:100%; padding: 10px 8px; justify-content:center;">
-            <span>${pack.priceRub} ₽ VK Pay</span>
+          <div class="shop-item-meta">${(pack.chips || 0).toLocaleString('ru-RU')} фишек${pack.gold ? ` · +${pack.gold} золота` : ''}${pack.vipDays ? ` · VIP ${pack.vipDays}д` : ''}</div>
+          <button class="btn-hero vk-blue" style="width:100%; padding: 10px 8px; justify-content:center;" ${payments.votesEnabled ? '' : 'disabled'}>
+            <span>${btnLabel}</span>
           </button>
         `;
         card.querySelector('button').addEventListener('click', async () => {
-          this.socket.emit('createPayOrder', { sku: pack.id });
-          const payment = await vk.openVKPay(pack.priceRub, pack.name);
-          this.showToast(payment ? 'Платёж ушёл на серверную проверку' : 'VK Pay недоступен, заказ pending');
+          if (!payments.votesEnabled) {
+            this.showToast('Оплата не настроена');
+            return;
+          }
+          if (!vk.isVK) {
+            this.showToast('Оплата только внутри VK');
+            return;
+          }
+          const before = this.userEconomy?.chips || 0;
+          const payment = await vk.showOrderBox(pack.id);
+          if (!payment.ok) {
+            this.showToast(payment.skipped ? 'Оплата только внутри VK' : 'Оплата отменена');
+            return;
+          }
+          this.showToast('VK принял оплату, ждём начисление…');
+          const credited = await this.waitForPaidWallet(before);
+          this.showToast(credited
+            ? 'Фишки начислены'
+            : 'VK принял оплату, фишки ещё не пришли. Проверьте адрес уведомлений в кабинете.');
         });
         container.appendChild(card);
       });

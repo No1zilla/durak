@@ -80,3 +80,11 @@ npm start
 
 Игра уже на `https://durak-production-3b7a.up.railway.app/` (автодеплой `main`).
 Этот URL **не** ставить в кабинет VK для аудитории в РФ. Прокси — раздел выше.
+
+## Деньги
+
+Реклама за фишки работает из VK без мерчанта (включите native reward ads в кабинете).
+Оплата — голоса VK: `VK_CLIENT_SECRET` на Railway + адрес уведомлений
+`https://<Cloudflare-origin>/api/vkpay/notification` (не github.io).
+Пока секрета нет, магазин пишет «оплата не настроена», webhook не врёт, что платёж прошёл.
+Фишки на диске: volume Railway `/data`, иначе деплой обнуляет кошелёк. Кабинет и volume — `docs/MONEY.md`, `docs/RAILWAY_VOLUME.md`.
