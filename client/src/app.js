@@ -33,9 +33,13 @@ class DurakApp {
   async init() {
     console.log('Initializing Durak Online 3D...');
     try {
-      await vk.init();
-      this.player = await vk.getUserInfo();
+      // Do not await VK: iframe/WebView timeouts used to block Socket.IO and freeze «Загрузка стола...».
+      vk.init().catch((error) => console.warn(error));
+      this.player = vk.getImmediateUser();
       this.updateHeaderProfile();
+      vk.getUserInfo()
+        .then((user) => this.applyVkProfile(user))
+        .catch((error) => console.warn(error));
 
       if (needsRemoteApi(window.location.hostname) && !apiOrigin()) {
         window.__durakBoot?.fail('Фронт на GitHub Pages, но нет адреса API. Задайте DURAK_API_ORIGIN.');
@@ -55,7 +59,13 @@ class DurakApp {
       }
     } catch (error) {
       console.error(error);
-      window.__durakBoot?.fail('Ошибка запуска. Обновите страницу.');
+      if (!this.player) this.player = vk.getImmediateUser();
+      try {
+        if (!this.socket) this.initSocket();
+      } catch (socketError) {
+        console.error(socketError);
+        window.__durakBoot?.fail('Ошибка запуска. Обновите страницу.');
+      }
     }
   }
 
@@ -73,13 +83,17 @@ class DurakApp {
 
   updateHeaderProfile() {
     if (!this.player) return;
-    document.getElementById('user-name').textContent = this.player.name;
-    if (this.player.avatar) {
-      document.getElementById('user-avatar').src = this.player.avatar;
+    const nameEl = document.getElementById('user-name');
+    if (nameEl) nameEl.textContent = this.player.name;
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl && this.player.avatar) {
+      avatarEl.src = this.player.avatar;
     }
     if (this.userEconomy) {
-      document.getElementById('user-chips').textContent = Number(this.userEconomy.chips).toLocaleString();
-      document.getElementById('user-gold').textContent = Number(this.userEconomy.gold).toLocaleString();
+      const chipsEl = document.getElementById('user-chips');
+      const goldEl = document.getElementById('user-gold');
+      if (chipsEl) chipsEl.textContent = Number(this.userEconomy.chips).toLocaleString();
+      if (goldEl) goldEl.textContent = Number(this.userEconomy.gold).toLocaleString();
       document.querySelector('.avatar-wrapper')?.classList.toggle('frame-gold', this.userEconomy.activeFrame === 'frame_gold');
     }
   }
@@ -91,6 +105,14 @@ class DurakApp {
     if (user.activeTable) this.applyTableSkin(user.activeTable);
     if (user.activeDeck) this.cardRenderer?.setDeckSkin(user.activeDeck);
     this.renderDailyModal();
+  }
+
+  applyVkProfile(user) {
+    if (!user || !this.player) return;
+    this.player.name = user.name || this.player.name;
+    this.player.avatar = user.avatar || this.player.avatar;
+    if (user.rawId) this.player.rawId = user.rawId;
+    this.updateHeaderProfile();
   }
 
   initScene() {
@@ -105,7 +127,11 @@ class DurakApp {
   failBoot(message) {
     if (this._bootFailed) return;
     this._bootFailed = true;
-    this.showToast(message);
+    try {
+      this.showToast(message);
+    } catch {
+      // toast node may be missing in a broken iframe boot
+    }
     window.__durakBoot?.fail(message);
   }
 
@@ -128,7 +154,9 @@ class DurakApp {
     });
 
     this.socket.on('connect_error', () => {
-      this.failBoot('Нет связи с API. Railway не отвечает из VK.');
+      this.failBoot(needsRemoteApi(window.location.hostname)
+        ? 'VK не пускает API с GitHub Pages. В кабинете VK укажите URL Railway.'
+        : 'Нет связи с сервером. Проверьте Railway.');
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
@@ -153,10 +181,10 @@ class DurakApp {
       this.isHost = false;
       this._seatSignature = null;
       this._victoryFor = null;
-      this.cardRenderer.clear();
+      this.cardRenderer?.clear();
       this.renderFallbackCards([], []);
       this.switchView('lobby-view');
-      this.scene3D.updateCameraForPlayerCount(4);
+      this.scene3D?.updateCameraForPlayerCount(4);
       if (this._wantRematch) {
         this._wantRematch = false;
         this.socket.emit('quickMatch', { mode: this._lastMode || 'podkidnoy' });
@@ -926,6 +954,7 @@ class DurakApp {
 
   showToast(message) {
     const toast = document.getElementById('toast');
+    if (!toast) return;
     toast.textContent = message;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2600);
