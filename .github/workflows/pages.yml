@@ -1,0 +1,37 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write API origin from secret
+        env:
+          DURAK_API_ORIGIN: ${{ secrets.DURAK_API_ORIGIN }}
+        run: |
+          if [ -n "$DURAK_API_ORIGIN" ]; then
+            node -e 'console.log("window.DURAK_API_ORIGIN = " + JSON.stringify(String(process.env.DURAK_API_ORIGIN).replace(/\/$/, "")) + ";")' > client/runtime-config.js
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client
+      - id: deployment
+        uses: actions/deploy-pages@v4

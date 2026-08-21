@@ -35,9 +35,10 @@ async function run() {
   try {
     const html = fs.readFileSync(path.join(__dirname, '../client/index.html'), 'utf8');
     assert(!/cdnjs|unpkg|fonts\.googleapis/.test(html), 'index.html still loads CDN assets');
-    ['three.min.js', 'gsap.min.js', 'vk-bridge.min.js'].forEach(file => {
+    ['three.min.js', 'gsap.min.js', 'vk-bridge.min.js', 'socket.io.min.js'].forEach(file => {
       assert(fs.existsSync(path.join(__dirname, '../client/vendor', file)), `missing vendor/${file}`);
     });
+    assert(!/\/socket\.io\/socket\.io\.js/.test(html), 'index.html still loads socket.io from the API origin');
 
     await page.goto(SERVER, { waitUntil: 'networkidle2', timeout: 20000 });
     await page.waitForFunction(() => document.getElementById('boot-screen')?.classList.contains('hidden'), { timeout: 12000 });
