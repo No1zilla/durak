@@ -16,8 +16,32 @@ export class Scene3D {
     this.chipStacks = [];
     this.playerCount = 4;
     this.tableColor = '#0b2b1b';
+    this.quality = this.detectQuality();
 
     this.init();
+  }
+
+  detectQuality() {
+    const compact = window.innerHeight < 760;
+    const mobile = window.innerWidth < 500;
+    return {
+      compact,
+      mobile,
+      antialias: !mobile,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : compact ? 1.5 : 2),
+      shadowSize: mobile ? 512 : compact ? 1024 : 2048,
+      shadows: !mobile,
+      envMap: !compact,
+      chipCountScale: mobile || compact ? 0.4 : 1
+    };
+  }
+
+  getViewport() {
+    const vv = window.visualViewport;
+    return {
+      width: Math.round(vv?.width || window.innerWidth),
+      height: Math.round(vv?.height || window.innerHeight)
+    };
   }
 
   init() {
@@ -27,13 +51,18 @@ export class Scene3D {
     this.scene.fog = new THREE.FogExp2('#04060a', 0.035);
 
     // 2. Camera with Cinematic Angle & Perspective
-    const aspect = window.innerWidth / window.innerHeight;
+    const { width, height } = this.getViewport();
+    const aspect = width / height;
     this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
     this.updateCameraForPlayerCount(4, false);
 
     // 3. Renderer with High Dynamic Range & Soft Shadows
     try {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: this.quality.antialias,
+        alpha: true,
+        powerPreference: this.quality.mobile ? 'low-power' : 'high-performance'
+      });
     } catch (e) {
       console.warn('WebGL high-performance failed, trying basic WebGLRenderer:', e);
       try {
@@ -45,9 +74,9 @@ export class Scene3D {
     }
 
     if (this.renderer) {
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      this.renderer.shadowMap.enabled = true;
+      this.renderer.setSize(width, height);
+      this.renderer.setPixelRatio(this.quality.pixelRatio);
+      this.renderer.shadowMap.enabled = this.quality.shadows;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -72,6 +101,7 @@ export class Scene3D {
 
     // Resize
     window.addEventListener('resize', () => this.onResize());
+    window.visualViewport?.addEventListener('resize', () => this.onResize());
 
     // Loop
     this.animate();
@@ -95,20 +125,22 @@ export class Scene3D {
     this.scene.add(bgPlane);
 
     // 2. HD PBR Environment Map for Real Physical Reflections on Gold, Wood, and Cards
-    this.textureLoader.load('assets/table/casino_room_pano.jpg', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      if (this.renderer) {
-        try {
-          const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-          pmremGenerator.compileEquirectangularShader();
-          const envMap = pmremGenerator.fromEquirectangular(tex).texture;
-          this.scene.environment = envMap;
-          pmremGenerator.dispose();
-        } catch (e) {
-          console.warn('PMREM environment fallback:', e);
+    if (this.quality.envMap) {
+      this.textureLoader.load('assets/table/casino_room_pano.jpg', (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        if (this.renderer) {
+          try {
+            const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+            pmremGenerator.compileEquirectangularShader();
+            const envMap = pmremGenerator.fromEquirectangular(tex).texture;
+            this.scene.environment = envMap;
+            pmremGenerator.dispose();
+          } catch (e) {
+            console.warn('PMREM environment fallback:', e);
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   setupLighting() {
@@ -120,9 +152,9 @@ export class Scene3D {
     chandelierSpot.position.set(0, 8.0, 0);
     chandelierSpot.angle = Math.PI / 3.0;
     chandelierSpot.penumbra = 0.6;
-    chandelierSpot.castShadow = true;
-    chandelierSpot.shadow.mapSize.width = 2048;
-    chandelierSpot.shadow.mapSize.height = 2048;
+    chandelierSpot.castShadow = this.quality.shadows;
+    chandelierSpot.shadow.mapSize.width = this.quality.shadowSize;
+    chandelierSpot.shadow.mapSize.height = this.quality.shadowSize;
     chandelierSpot.shadow.bias = -0.0002;
     this.scene.add(chandelierSpot);
     this.lights.chandelierSpot = chandelierSpot;
@@ -285,7 +317,8 @@ export class Scene3D {
         metalness: 0.2
       });
 
-      for (let i = 0; i < stack.count; i++) {
+      const count = Math.max(3, Math.round(stack.count * this.quality.chipCountScale));
+      for (let i = 0; i < count; i++) {
         const chip = new THREE.Mesh(chipGeo, chipMat);
         chip.position.set(
           stack.x + (Math.random() - 0.5) * 0.02,
@@ -293,8 +326,8 @@ export class Scene3D {
           stack.z + (Math.random() - 0.5) * 0.02
         );
         chip.rotation.y = Math.random() * Math.PI;
-        chip.castShadow = true;
-        chip.receiveShadow = true;
+        chip.castShadow = this.quality.shadows;
+        chip.receiveShadow = this.quality.shadows;
         this.scene.add(chip);
         this.chipStacks.push(chip);
       }
@@ -305,8 +338,9 @@ export class Scene3D {
     const vector = new THREE.Vector3(position3D.x, position3D.y, position3D.z);
     vector.project(this.camera);
 
-    const widthHalf = window.innerWidth / 2;
-    const heightHalf = window.innerHeight / 2;
+    const { width, height } = this.getViewport();
+    const widthHalf = width / 2;
+    const heightHalf = height / 2;
 
     return {
       x: (vector.x * widthHalf) + widthHalf,
@@ -317,13 +351,15 @@ export class Scene3D {
 
   onResize() {
     if (!this.camera || !this.renderer) return;
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    const { width, height } = this.getViewport();
+    this.camera.aspect = width / height;
+    this.renderer.setSize(width, height);
     this.updateCameraForPlayerCount(this.playerCount, false);
   }
 
   animate() {
     requestAnimationFrame(() => this.animate());
+    if (document.hidden) return;
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }

@@ -2,26 +2,58 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <script>
+    if (location.hostname.endsWith('github.io')) {
+      const base = document.createElement('base');
+      const path = location.pathname.replace(/\/index\.html$/, '/');
+      base.href = path.endsWith('/') ? path : `${path}/`;
+      document.head.prepend(base);
+    }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Дурак Онлайн 3D — VK Mini App</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
-  
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Styles -->
+
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/game-ui.css">
-
-  <!-- External Libraries via CDN -->
-  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+  <div id="boot-screen">
+    <div class="boot-card">
+      <div class="boot-title">ДУРАК ОНЛАЙН 3D</div>
+      <div class="boot-status" id="boot-status">Загрузка стола...</div>
+    </div>
+  </div>
+  <script>
+    window.__durakBoot = {
+      hide() {
+        const el = document.getElementById('boot-screen');
+        if (el) el.classList.add('hidden');
+      },
+      fail(msg) {
+        const status = document.getElementById('boot-status');
+        const el = document.getElementById('boot-screen');
+        if (status) status.textContent = msg;
+        if (el) el.classList.add('error');
+      }
+    };
+    window.addEventListener('load', () => {
+      if (typeof THREE === 'undefined') {
+        window.__durakBoot.fail('Не удалось загрузить 3D-движок. Обновите страницу.');
+      }
+    });
+    setTimeout(() => {
+      const el = document.getElementById('boot-screen');
+      if (!el || el.classList.contains('hidden') || el.classList.contains('error')) return;
+      window.__durakBoot.fail('Сервер не ответил за 8 с. Проверьте Railway и URL в VK.');
+    }, 8000);
+  </script>
+  <script src="runtime-config.js"></script>
+  <script src="vendor/vk-bridge.min.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/gsap.min.js"></script>
+  <script src="vendor/socket.io.min.js"></script>
+
   <!-- 3D Canvas Container -->
   <div id="canvas-container"></div>
   <div id="webgl-fallback" aria-live="polite">
@@ -40,7 +72,7 @@
     <header id="top-bar" class="glass-panel">
       <div class="user-profile" id="btn-profile">
         <div class="avatar-wrapper">
-          <img id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Avatar">
+          <img id="user-avatar" src="assets/ui/chips.svg" alt="Avatar">
           <span class="user-level" id="user-level">1</span>
         </div>
         <div class="user-info">
@@ -143,6 +175,9 @@
             <path d="M12 3v3M8 3h8M5 9h14v10H5zM2 12h3M19 12h3M9 13h.01M15 13h.01M9 17h6"/>
           </svg>
           <span>+Бот</span>
+        </button>
+        <button id="btn-start-game" class="btn-icon-small btn-start-game" title="Начать игру" hidden>
+          <span>Старт</span>
         </button>
         <button id="btn-throw-menu" class="btn-icon-small" title="Бросить предмет">🍅</button>
       </div>
@@ -249,9 +284,10 @@
           <button class="btn-close-modal" id="btn-close-shop">✕</button>
         </div>
         <div class="shop-tabs">
-          <button class="shop-tab active" data-tab="decks">Рубашки карт</button>
-          <button class="shop-tab" data-tab="tables">Сукно столов</button>
-          <button class="shop-tab" data-tab="currency">Фишки & VK Pay</button>
+          <button class="shop-tab active" data-tab="decks">Рубашки</button>
+          <button class="shop-tab" data-tab="tables">Столы</button>
+          <button class="shop-tab" data-tab="frames">Рамки</button>
+          <button class="shop-tab" data-tab="currency">Фишки</button>
         </div>
         <div class="modal-body shop-items-grid" id="shop-catalog-container">
           <!-- Dynamically populated shop items -->
@@ -259,7 +295,25 @@
       </div>
     </div>
 
-    <!-- Throw Item Radial Menu -->
+    <div id="modal-daily" class="modal-overlay">
+      <div class="modal-card glass-modal">
+        <div class="modal-header">
+          <h2>Награды</h2>
+          <button class="btn-close-modal" id="btn-close-daily">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="daily-streak-label">Серия: <strong id="daily-streak-value">0</strong>/7 дней</p>
+          <div class="daily-streak-row" id="daily-streak-row"></div>
+          <button id="btn-claim-daily" class="btn-hero primary full-width">Забрать ежедневку</button>
+          <button id="btn-claim-starter" class="btn-hero accent full-width" style="margin-top:8px;">Стартовый набор: рубашка 1913</button>
+          <button id="btn-claim-rewarded" class="btn-glass full-width" style="margin-top:8px;">Реклама за 400 фишек</button>
+          <p class="daily-note" id="rewarded-left">Реклама: 3/3</p>
+          <h3 class="quests-title">Задания дня</h3>
+          <div id="quests-list"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="menu-throw-items" class="throw-radial-menu hidden">
       <button class="btn-throw-item" data-item="tomato" title="Помидор">🍅</button>
       <button class="btn-throw-item" data-item="champagne" title="Шампанское">🍾</button>
@@ -273,7 +327,7 @@
       <div class="victory-card-container">
         <div class="stylish-share-card glass-modal" id="share-card-element">
           <div class="share-avatar-wrapper">
-            <img id="vic-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Winner">
+            <img id="vic-avatar" src="assets/ui/chips.svg" alt="Winner">
             <span class="share-level-badge" id="vic-level">LVL 28</span>
           </div>
           <h3 class="share-player-name" id="vic-player-name">Игрок</h3>
@@ -301,7 +355,13 @@
             <span>✨ Опубликовать в VK Историю</span>
           </button>
           <button id="btn-share-vk-wall" class="btn-glass full-width">
-            <span>📝 На стену VK</span>
+            <span>На стену VK</span>
+          </button>
+          <button id="btn-invite-friend" class="btn-glass full-width">
+            <span>Пригласить друга</span>
+          </button>
+          <button id="btn-rematch" class="btn-hero primary full-width">
+            <span>Еще партия</span>
           </button>
           <button id="btn-victory-lobby" class="btn-ghost full-width">
             <span>В лобби</span>

@@ -21,8 +21,8 @@
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
 
-  --font-display: 'Cinzel', serif;
-  --font-body: 'Outfit', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -41,10 +41,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  position: fixed;
+  inset: 0;
   background: #080605 url('../assets/table/casino_bg_portrait.jpg') top center / cover no-repeat;
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -57,8 +65,8 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 1;
   pointer-events: auto;
   background: transparent;
@@ -136,8 +144,8 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(circle at center, transparent 35%, rgba(4, 6, 10, 0.8) 100%);
@@ -145,8 +153,8 @@ html, body {
 
 #app-root {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -540,8 +548,8 @@ button, input, select {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 100;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(16px);
@@ -719,8 +727,89 @@ input[type="range"] {
   gap: 8px;
 }
 
-.shop-item-name {
+.shop-item-preview {
+  width: 54px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.shop-item-swatch {
+  width: 54px;
+  height: 36px;
+  border-radius: 6px;
+  background: #334155;
+}
+
+.shop-item-swatch.deck_cyberpunk {
+  background: linear-gradient(135deg, #22d3ee, #a855f7);
+  height: 76px;
+}
+
+.shop-item-swatch.deck_gold {
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  height: 76px;
+}
+
+.shop-item-swatch.table_emerald { background: #114227; }
+.shop-item-swatch.table_red { background: #4a111a; }
+.shop-item-swatch.table_carbon { background: #161a22; }
+.shop-item-swatch.table_marble { background: #0d2238; }
+.shop-item-swatch.frame_gold { background: linear-gradient(135deg, #fde68a, #d4af37); }
+.shop-item-swatch.frame_none { background: #1f2937; }
+
+.btn-hero:disabled,
+.btn-glass:disabled,
+.btn-buy-skin:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.avatar-wrapper.frame-gold {
+  box-shadow: 0 0 0 2px #d4af37, 0 0 12px rgba(212, 175, 55, 0.55);
+  border-radius: 50%;
+}
+
+.daily-streak-row {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin: 12px 0;
+}
+
+.streak-dot {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  font-size: 11px;
   font-weight: 700;
+}
+
+.streak-dot.filled {
+  background: rgba(212, 175, 55, 0.35);
+  color: #fde68a;
+}
+
+.quests-title {
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+
+.quest-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.daily-note {
+  margin-top: 8px;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -794,4 +883,43 @@ input[type="range"] {
   background: rgba(212, 175, 55, 0.15);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
+}
+
+#boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 5, 0.92);
+  pointer-events: auto;
+}
+
+#boot-screen.hidden {
+  display: none;
+}
+
+.boot-card {
+  text-align: center;
+  padding: 24px 28px;
+  border-radius: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(18, 24, 36, 0.88);
+}
+
+.boot-title {
+  font-family: var(--font-display);
+  letter-spacing: 2px;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.boot-status {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+#boot-screen.error .boot-status {
+  color: #fca5a5;
 }
