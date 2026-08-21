@@ -1,9 +1,18 @@
 const crypto = require('crypto');
 
+function launchQuery(rawParams) {
+  if (!rawParams || typeof rawParams !== 'string') return '';
+  let query = rawParams.trim();
+  if (query.startsWith('?') || query.startsWith('#')) query = query.slice(1);
+  if (query.startsWith('/?')) query = query.slice(2);
+  else if (query.startsWith('/')) query = query.slice(1);
+  return query;
+}
+
 function verifyVkLaunchParams(rawParams, secret) {
   if (!rawParams || !secret) return null;
 
-  const params = new URLSearchParams(rawParams.startsWith('?') ? rawParams.slice(1) : rawParams);
+  const params = new URLSearchParams(launchQuery(rawParams));
   const sign = params.get('sign');
   const userId = params.get('vk_user_id');
   if (!sign || !/^\d+$/.test(userId || '')) return null;

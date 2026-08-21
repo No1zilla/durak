@@ -23,6 +23,8 @@ test('VK launch params require a valid signature', () => {
   const secret = 'test-secret';
   const params = signedLaunchParams(secret);
   assert.deepEqual(verifyVkLaunchParams(params, secret), { id: 'vk_12345', rawId: 12345 });
+  assert.deepEqual(verifyVkLaunchParams(`?${params}`, secret), { id: 'vk_12345', rawId: 12345 });
+  assert.deepEqual(verifyVkLaunchParams(`#/?${params}`, secret), { id: 'vk_12345', rawId: 12345 });
   assert.equal(verifyVkLaunchParams(params.replace('12345', '99999'), secret), null);
   assert.equal(verifyVkLaunchParams(params, 'wrong-secret'), null);
 });
