@@ -28,7 +28,9 @@ function extractVkLaunchQuery(rawParams) {
   const merged = new URLSearchParams();
   const add = (raw) => {
     if (!raw) return;
-    const query = raw.startsWith('?') || raw.startsWith('#') ? raw.slice(1) : raw;
+    let query = raw.startsWith('?') || raw.startsWith('#') ? raw.slice(1) : raw;
+    if (query.startsWith('/?')) query = query.slice(2);
+    else if (query.startsWith('/')) query = query.slice(1);
     if (!query) return;
     for (const [key, value] of new URLSearchParams(query)) {
       merged.set(key, value);
