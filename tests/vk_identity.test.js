@@ -27,6 +27,8 @@ function signedLaunchParams(secret, extra = {}) {
 test('launch params from hash and full URL are parsed', () => {
   const query = 'vk_user_id=12345&vk_app_id=54720415&sign=abc';
   assert.equal(extractVkLaunchQuery(`#${query}`), query);
+  assert.equal(extractVkLaunchQuery(`#/?${query}`), query);
+  assert.equal(extractVkLaunchQuery(`https://game.example/?foo=1#/?${query}`), `foo=1&${query}`);
   assert.equal(extractVkLaunchQuery(`https://game.example/?foo=1#${query}`), `foo=1&${query}`);
   assert.equal(extractVkLaunchQuery(`?${query}`), query);
 });
