@@ -37,22 +37,22 @@ class DurakApp {
       this.player = await vk.getUserInfo();
       this.updateHeaderProfile();
 
-      const container = document.getElementById('canvas-container');
-      this.scene3D = new Scene3D(container);
-      document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
-      this.cardRenderer = new CardRenderer3D(this.scene3D);
-      this.throwEngine = new ThrowItemsEngine(this.scene3D);
-      this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
-
       if (needsRemoteApi(window.location.hostname) && !apiOrigin()) {
         window.__durakBoot?.fail('Фронт на GitHub Pages, но нет адреса API. Задайте DURAK_API_ORIGIN.');
         return;
       }
 
+      // Socket first: VK WebView can stall on WebGL, and boot used to wait for 3D then auth.
       this.initSocket();
       this.bindUIEvents();
       this.fetchShopCatalog();
       this.startHUDPositionLoop();
+      try {
+        this.initScene();
+      } catch (sceneError) {
+        console.warn(sceneError);
+        document.getElementById('webgl-fallback')?.classList.add('visible');
+      }
     } catch (error) {
       console.error(error);
       window.__durakBoot?.fail('Ошибка запуска. Обновите страницу.');
@@ -93,8 +93,29 @@ class DurakApp {
     this.renderDailyModal();
   }
 
+  initScene() {
+    const container = document.getElementById('canvas-container');
+    this.scene3D = new Scene3D(container);
+    document.getElementById('webgl-fallback')?.classList.toggle('visible', !this.scene3D.renderer);
+    this.cardRenderer = new CardRenderer3D(this.scene3D);
+    this.throwEngine = new ThrowItemsEngine(this.scene3D);
+    this.cardRenderer.onCardPlayRequested = (card) => this.handleCardPlay(card);
+  }
+
+  failBoot(message) {
+    if (this._bootFailed) return;
+    this._bootFailed = true;
+    this.showToast(message);
+    window.__durakBoot?.fail(message);
+  }
+
   initSocket() {
-    this.socket = io(socketUrl(), { transports: ['websocket', 'polling'] });
+    this.socket = io(socketUrl(), {
+      transports: ['polling', 'websocket'],
+      timeout: 8000,
+      reconnectionAttempts: 5,
+      withCredentials: false
+    });
 
     this.socket.on('connect', () => {
       console.log('Connected to Game Server. Authenticating...');
@@ -107,11 +128,7 @@ class DurakApp {
     });
 
     this.socket.on('connect_error', () => {
-      this.showToast('Нет связи с сервером');
-      const boot = document.getElementById('boot-screen');
-      if (boot && !boot.classList.contains('hidden')) {
-        window.__durakBoot?.fail('Нет связи с API. Проверьте Railway и DURAK_API_ORIGIN.');
-      }
+      this.failBoot('Нет связи с API. Railway не отвечает из VK.');
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {
@@ -155,6 +172,10 @@ class DurakApp {
     this.socket.on('errorMsg', (msg) => {
       this.showToast(msg);
       vk.taptic('heavy');
+      const boot = document.getElementById('boot-screen');
+      if (boot && !boot.classList.contains('hidden')) {
+        this.failBoot(msg || 'Сервер отклонил вход');
+      }
     });
 
     this.socket.on('dailyBonusResult', (res) => {
