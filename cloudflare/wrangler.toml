@@ -1,0 +1,6 @@
+name = "durak-vk-proxy"
+main = "worker.js"
+compatibility_date = "2024-11-06"
+
+[vars]
+RAILWAY_ORIGIN = "https://durak-production-3b7a.up.railway.app"

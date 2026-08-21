@@ -22,10 +22,15 @@
     <div class="boot-card">
       <div class="boot-title">ДУРАК ОНЛАЙН 3D</div>
       <div class="boot-status" id="boot-status">Загрузка стола...</div>
+      <div class="boot-host" id="boot-host"></div>
     </div>
   </div>
   <script>
     window.__durakBoot = {
+      status(msg) {
+        const status = document.getElementById('boot-status');
+        if (status) status.textContent = msg;
+      },
       hide() {
         const el = document.getElementById('boot-screen');
         if (el) el.classList.add('hidden');
@@ -37,18 +42,31 @@
         if (el) el.classList.add('error');
       }
     };
+    const bootHost = document.getElementById('boot-host');
+    if (bootHost) bootHost.textContent = location.host;
     window.addEventListener('load', () => {
+      const el = document.getElementById('boot-screen');
+      if (el && el.classList.contains('error')) return;
       if (typeof THREE === 'undefined') {
-        window.__durakBoot.fail('Не удалось загрузить 3D-движок. Обновите страницу.');
+        window.__durakBoot.fail('Не удалось загрузить 3D-движок (скрипт). Обновите страницу.');
       }
     });
     setTimeout(() => {
       const el = document.getElementById('boot-screen');
       if (!el || el.classList.contains('hidden') || el.classList.contains('error')) return;
-      window.__durakBoot.fail('Сервер не ответил за 8 с. Проверьте Railway и URL в VK.');
-    }, 8000);
+      const probe = window.DurakBootProbe && window.DurakBootProbe.classifyBootFailure;
+      const classified = probe ? probe({
+        hostname: location.hostname,
+        apiOrigin: window.DURAK_API_ORIGIN || location.origin,
+        htmlLoaded: true,
+        healthOk: window.__durakHealth ? window.__durakHealth.ok : undefined,
+        socketConnected: window.app && window.app.socket ? window.app.socket.connected : false
+      }) : { message: `Нет входа (${location.host}). Из РФ не используйте *.up.railway.app в кабинете VK.` };
+      window.__durakBoot.fail(classified.message);
+    }, 12000);
   </script>
   <script src="runtime-config.js"></script>
+  <script type="module" src="src/bootProbe.js"></script>
   <script src="vendor/vk-bridge.min.js"></script>
   <script>
     try {

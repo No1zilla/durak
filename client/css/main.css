@@ -906,6 +906,7 @@ input[type="range"] {
   border-radius: 16px;
   border: 1px solid rgba(212, 175, 55, 0.35);
   background: rgba(18, 24, 36, 0.88);
+  max-width: min(360px, 92vw);
 }
 
 .boot-title {
@@ -918,6 +919,14 @@ input[type="range"] {
 .boot-status {
   color: var(--text-secondary);
   font-size: 13px;
+  line-height: 1.45;
+}
+
+.boot-host {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
 }
 
 #boot-screen.error .boot-status {

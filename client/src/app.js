@@ -10,6 +10,7 @@ import { CardRenderer3D } from './cardRenderer3d.js';
 import { ThrowItemsEngine } from './items3d.js';
 import { generateStoryImage } from './storyShare.js';
 import { apiOrigin, apiUrl, needsRemoteApi, socketUrl } from './apiOrigin.js';
+import { classifyBootFailure } from './bootProbe.js';
 
 class DurakApp {
   constructor() {
@@ -42,7 +43,7 @@ class DurakApp {
         .catch((error) => console.warn(error));
 
       if (needsRemoteApi(window.location.hostname) && !apiOrigin()) {
-        window.__durakBoot?.fail('Фронт на GitHub Pages, но нет адреса API. Задайте DURAK_API_ORIGIN.');
+        this.failBoot('Статика без адреса API. DURAK_API_ORIGIN = HTTPS Cloudflare-прокси, не Railway.');
         return;
       }
 
@@ -154,9 +155,14 @@ class DurakApp {
     });
 
     this.socket.on('connect_error', () => {
-      this.failBoot(needsRemoteApi(window.location.hostname)
-        ? 'VK не пускает API с GitHub Pages. В кабинете VK укажите URL Railway.'
-        : 'Нет связи с сервером. Проверьте Railway.');
+      const classified = classifyBootFailure({
+        hostname: window.location.hostname,
+        apiOrigin: apiOrigin() || window.location.origin,
+        htmlLoaded: true,
+        healthOk: window.__durakHealth ? window.__durakHealth.ok : undefined,
+        socketConnected: false
+      });
+      this.failBoot(classified.message);
     });
 
     this.socket.on('authSuccess', ({ player, userEconomy }) => {

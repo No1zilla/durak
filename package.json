@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "AAA 3D Multiplayer Durak Online for VK Mini Apps",
   "main": "server/server.js",
+  "homepage": ".",
   "scripts": {
     "start": "node server/server.js",
     "dev": "node server/server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "write-runtime-config": "node scripts/write-runtime-config.js",
+    "deploy:cf": "npx wrangler@4 deploy --config cloudflare/wrangler.toml",
+    "deploy:vk": "npx @vkontakte/vk-miniapps-deploy"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -20,6 +20,9 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const VK_APP_ID = process.env.VK_APP_ID || '54720415';
 const BUILD_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'dev';
+const PUBLIC_ORIGIN = String(process.env.PUBLIC_ORIGIN || process.env.DURAK_PUBLIC_ORIGIN || '').replace(/\/$/, '');
+
+app.set('trust proxy', true);
 
 // Middlewares
 app.use((req, res, next) => {
@@ -30,6 +33,11 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   }
+  res.setHeader('X-Durak-Build', BUILD_SHA);
+  res.setHeader(
+    'Content-Security-Policy',
+    "frame-ancestors 'self' https://vk.com https://*.vk.com https://vk.ru https://*.vk.ru https://*.vk.me"
+  );
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
@@ -49,14 +57,24 @@ app.use(express.static(path.join(__dirname, '../client'), {
 const roomManager = new RoomManager(io);
 const economyService = new EconomyService();
 
-// REST API Endpoints
-app.get('/api/config', (req, res) => {
-  res.json({
+function publicBootInfo() {
+  return {
+    ok: true,
     vkAppId: VK_APP_ID,
     serverTime: Date.now(),
     version: '1.0.0',
-    buildSha: BUILD_SHA
-  });
+    buildSha: BUILD_SHA,
+    publicOrigin: PUBLIC_ORIGIN
+  };
+}
+
+// REST API Endpoints
+app.get('/api/health', (req, res) => {
+  res.json(publicBootInfo());
+});
+
+app.get('/api/config', (req, res) => {
+  res.json(publicBootInfo());
 });
 
 app.get('/api/shop/catalog', (req, res) => {
