@@ -83,13 +83,17 @@ class DurakApp {
 
   updateHeaderProfile() {
     if (!this.player) return;
-    document.getElementById('user-name').textContent = this.player.name;
-    if (this.player.avatar) {
-      document.getElementById('user-avatar').src = this.player.avatar;
+    const nameEl = document.getElementById('user-name');
+    if (nameEl) nameEl.textContent = this.player.name;
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl && this.player.avatar) {
+      avatarEl.src = this.player.avatar;
     }
     if (this.userEconomy) {
-      document.getElementById('user-chips').textContent = Number(this.userEconomy.chips).toLocaleString();
-      document.getElementById('user-gold').textContent = Number(this.userEconomy.gold).toLocaleString();
+      const chipsEl = document.getElementById('user-chips');
+      const goldEl = document.getElementById('user-gold');
+      if (chipsEl) chipsEl.textContent = Number(this.userEconomy.chips).toLocaleString();
+      if (goldEl) goldEl.textContent = Number(this.userEconomy.gold).toLocaleString();
       document.querySelector('.avatar-wrapper')?.classList.toggle('frame-gold', this.userEconomy.activeFrame === 'frame_gold');
     }
   }
