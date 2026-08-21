@@ -5,10 +5,12 @@
 const { DurakGame, GAME_MODES, GAME_STATES } = require('./DurakGame');
 
 class RoomManager {
-  constructor(io) {
+  constructor(io, hooks = {}) {
     this.io = io;
     this.rooms = new Map();
     this.playerRooms = new Map();
+    this.onMatchStart = hooks.onMatchStart || (() => {});
+    this.onGameOver = hooks.onGameOver || (() => {});
   }
 
   createRoom(settings = {}, hostPlayer) {
@@ -95,7 +97,7 @@ class RoomManager {
     if (player.socketId) this.playerRooms.set(player.socketId, roomId);
 
     if (room.game.players.length >= room.game.maxPlayers && room.game.state === GAME_STATES.WAITING) {
-      room.game.start();
+      this.startMatch(room);
     }
 
     this.broadcastState(roomId);
@@ -147,7 +149,7 @@ class RoomManager {
     this.addBot(room.id, 'Ольга (Бот)', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop');
 
     if (room.game.state === GAME_STATES.WAITING) {
-      room.game.start();
+      this.startMatch(room);
     }
 
     this.broadcastState(room.id);
@@ -183,11 +185,17 @@ class RoomManager {
     });
 
     if (room.game.state === GAME_STATES.WAITING && room.game.players.length >= room.game.maxPlayers) {
-      room.game.start();
+      this.startMatch(room);
     }
 
     this.broadcastState(roomId);
     this.handleBotTurns(roomId);
+    return true;
+  }
+
+  startMatch(room) {
+    if (!room.game.start()) return false;
+    this.onMatchStart(room);
     return true;
   }
 
@@ -200,6 +208,10 @@ class RoomManager {
         const sanitized = room.game.getSanitizedState(player.id);
         this.io.to(player.socketId).emit('gameState', sanitized);
       }
+    }
+    if (room.game.state === GAME_STATES.GAME_OVER && !room.settled) {
+      room.settled = true;
+      this.onGameOver(room);
     }
   }
 

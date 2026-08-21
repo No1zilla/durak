@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 const { spawn } = require('child_process');
+const os = require('os');
 const path = require('path');
 
 function waitForHttp(url, timeoutMs = 15000) {
@@ -38,9 +39,16 @@ function getJson(url) {
 
 test('/api/health reports ok and buildSha', async () => {
   const port = 3127;
+  const economyFile = path.join(os.tmpdir(), `durak-health-${process.pid}.json`);
   const child = spawn(process.execPath, ['server/server.js'], {
     cwd: path.join(__dirname, '..'),
-    env: { ...process.env, PORT: String(port), NODE_ENV: 'development', GIT_COMMIT_SHA: 'testsha' },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      NODE_ENV: 'development',
+      GIT_COMMIT_SHA: 'testsha',
+      ECONOMY_FILE: economyFile
+    },
     stdio: 'ignore'
   });
   try {
