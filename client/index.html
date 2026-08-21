@@ -43,8 +43,10 @@
       }
     });
     setTimeout(() => {
-      if (!window.app) window.__durakBoot.fail('Игра не запустилась. Обновите страницу.');
-    }, 12000);
+      const el = document.getElementById('boot-screen');
+      if (!el || el.classList.contains('hidden') || el.classList.contains('error')) return;
+      window.__durakBoot.fail('Сервер не ответил за 8 с. Проверьте Railway и URL в VK.');
+    }, 8000);
   </script>
   <script src="runtime-config.js"></script>
   <script src="vendor/vk-bridge.min.js"></script>
